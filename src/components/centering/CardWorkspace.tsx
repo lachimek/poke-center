@@ -2,20 +2,23 @@
 
 import { FoldHorizontal, FoldVertical } from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DEFAULT_GUIDES,
   DEFAULT_VIEW_TRANSFORM,
 } from "@/lib/centering/constants";
+import { warpToCardSize } from "@/lib/centering/perspective";
 import type {
   CardSide,
   CardSideState,
+  PerspectiveQuad,
   SideResult,
   ViewerMagnify,
   ViewerMagnifyFactor,
   ViewTransform,
 } from "@/lib/centering/types";
 import { CardViewer } from "./CardViewer";
+import { PerspectiveCornerEditor } from "./PerspectiveCornerEditor";
 import { Toolbar } from "./Toolbar";
 
 function SideMetrics({ result }: { result: SideResult }) {
@@ -87,16 +90,40 @@ export function CardWorkspace({
   const viewerMagnifyActive =
     viewerMagnify?.side === side ? viewerMagnify.factor : null;
   const [fitRequestId, setFitRequestId] = useState(0);
+  const [perspectiveMode, setPerspectiveMode] = useState(false);
+  const [perspectiveSession, setPerspectiveSession] = useState(0);
+  const [perspectiveDraft, setPerspectiveDraft] =
+    useState<PerspectiveQuad | null>(null);
+  const [perspectiveValid, setPerspectiveValid] = useState(false);
+  const [perspectiveHint, setPerspectiveHint] = useState<string | null>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!state.rawImageSrc) {
+      setPerspectiveMode(false);
+      setPerspectiveDraft(null);
+      setPerspectiveValid(false);
+      setPerspectiveHint(null);
+    }
+  }, [state.rawImageSrc]);
 
   const onUpload = useCallback(
     (file: File) => {
       const url = URL.createObjectURL(file);
+      setPerspectiveMode(false);
+      setPerspectiveDraft(null);
+      setPerspectiveValid(false);
+      setPerspectiveHint(null);
       setState((s) => {
-        if (s.imageSrc) URL.revokeObjectURL(s.imageSrc);
+        if (s.rawImageSrc) URL.revokeObjectURL(s.rawImageSrc);
+        if (s.imageSrc && s.imageSrc !== s.rawImageSrc) {
+          URL.revokeObjectURL(s.imageSrc);
+        }
         return {
           ...s,
+          rawImageSrc: url,
           imageSrc: url,
+          perspectiveCorners: null,
           transform: { ...DEFAULT_VIEW_TRANSFORM },
           guides: { ...DEFAULT_GUIDES },
         };
@@ -133,6 +160,99 @@ export function CardWorkspace({
   const onResetGuides = useCallback(() => {
     setState((s) => ({ ...s, guides: { ...DEFAULT_GUIDES } }));
   }, [setState]);
+
+  const onOpenPerspective = useCallback(() => {
+    if (!state.rawImageSrc) return;
+    setPerspectiveSession((n) => n + 1);
+    setPerspectiveMode(true);
+    setPerspectiveDraft(null);
+    setPerspectiveValid(false);
+    setPerspectiveHint(null);
+  }, [state.rawImageSrc]);
+
+  const onPerspectiveCancel = useCallback(() => {
+    setPerspectiveMode(false);
+    setPerspectiveDraft(null);
+    setPerspectiveValid(false);
+    setPerspectiveHint(null);
+  }, []);
+
+  const onPerspectiveDraftChange = useCallback(
+    (quad: PerspectiveQuad, valid: boolean, hint: string | null) => {
+      setPerspectiveDraft(quad);
+      setPerspectiveValid(valid);
+      setPerspectiveHint(hint);
+    },
+    [],
+  );
+
+  const onPerspectiveApply = useCallback(() => {
+    if (!state.rawImageSrc || !perspectiveDraft || !perspectiveValid) {
+      return;
+    }
+    const quad = perspectiveDraft;
+    const src = state.rawImageSrc;
+    const img = new window.Image();
+    img.decoding = "async";
+    img.src = src;
+    img.onload = () => {
+      try {
+        const canvas = warpToCardSize(img, quad);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) return;
+            const newUrl = URL.createObjectURL(blob);
+            setState((s) => {
+              if (s.imageSrc && s.imageSrc !== s.rawImageSrc) {
+                URL.revokeObjectURL(s.imageSrc);
+              }
+              return {
+                ...s,
+                imageSrc: newUrl,
+                perspectiveCorners: quad,
+                transform: { ...DEFAULT_VIEW_TRANSFORM },
+                guides: { ...DEFAULT_GUIDES },
+              };
+            });
+            setFitRequestId((n) => n + 1);
+            setPerspectiveMode(false);
+            setPerspectiveDraft(null);
+            setPerspectiveValid(false);
+            setPerspectiveHint(null);
+          },
+          "image/png",
+          1,
+        );
+      } catch {
+        setPerspectiveHint("Could not build rectified image.");
+      }
+    };
+    img.onerror = () => {
+      setPerspectiveHint("Could not load image for warp.");
+    };
+  }, [perspectiveDraft, perspectiveValid, setState, state.rawImageSrc]);
+
+  const onResetRectification = useCallback(() => {
+    setState((s) => {
+      const rectified = s.imageSrc;
+      if (!s.rawImageSrc || !rectified || rectified === s.rawImageSrc) {
+        return s;
+      }
+      URL.revokeObjectURL(rectified);
+      return {
+        ...s,
+        imageSrc: s.rawImageSrc,
+        transform: { ...DEFAULT_VIEW_TRANSFORM },
+        guides: { ...DEFAULT_GUIDES },
+      };
+    });
+    setFitRequestId((n) => n + 1);
+  }, [setState]);
+
+  const isRectified =
+    !!state.rawImageSrc &&
+    !!state.imageSrc &&
+    state.imageSrc !== state.rawImageSrc;
 
   return (
     <section className="flex min-w-0 flex-col rounded-3xl border border-zinc-800 bg-zinc-900/70 p-5 shadow-2xl shadow-black/20">
@@ -171,19 +291,36 @@ export function CardWorkspace({
         onGuideColorChange={onGuideColorChange}
         viewerMagnifyActive={viewerMagnifyActive}
         onViewerMagnify={onViewerMagnify}
+        perspectiveMode={perspectiveMode}
+        perspectiveApplyEnabled={perspectiveValid && !!perspectiveDraft}
+        perspectiveHint={perspectiveHint}
+        isRectified={isRectified}
+        onOpenPerspective={onOpenPerspective}
+        onPerspectiveApply={onPerspectiveApply}
+        onPerspectiveCancel={onPerspectiveCancel}
+        onResetRectification={onResetRectification}
       />
 
-      <CardViewer
-        key={state.imageSrc ?? "empty"}
-        imageSrc={state.imageSrc}
-        transform={state.transform}
-        onTransformChange={onTransformChange}
-        guides={state.guides}
-        onGuidesChange={onGuidesChange}
-        guideColor={state.guideColor}
-        fitRequestId={fitRequestId}
-        onUpload={onUpload}
-      />
+      {perspectiveMode && state.rawImageSrc ? (
+        <PerspectiveCornerEditor
+          key={perspectiveSession}
+          rawImageSrc={state.rawImageSrc}
+          savedQuad={state.perspectiveCorners}
+          onDraftChange={onPerspectiveDraftChange}
+        />
+      ) : (
+        <CardViewer
+          key={state.imageSrc ?? "empty"}
+          imageSrc={state.imageSrc}
+          transform={state.transform}
+          onTransformChange={onTransformChange}
+          guides={state.guides}
+          onGuidesChange={onGuidesChange}
+          guideColor={state.guideColor}
+          fitRequestId={fitRequestId}
+          onUpload={onUpload}
+        />
+      )}
 
       <SideMetrics result={sideResult} />
     </section>

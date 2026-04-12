@@ -17,10 +17,12 @@ import { CardWorkspace } from "./CardWorkspace";
 import { SummaryPanel } from "./SummaryPanel";
 
 const initialSide: CardSideState = {
+  rawImageSrc: null,
   imageSrc: null,
   transform: { ...DEFAULT_VIEW_TRANSFORM },
   guides: { ...DEFAULT_GUIDES },
   guideColor: DEFAULT_GUIDE_COLOR,
+  perspectiveCorners: null,
 };
 
 export function CenteringApp() {
@@ -32,10 +34,20 @@ export function CenteringApp() {
 
   useEffect(() => {
     return () => {
-      if (front.imageSrc) URL.revokeObjectURL(front.imageSrc);
-      if (back.imageSrc) URL.revokeObjectURL(back.imageSrc);
+      const urls = new Set<string>();
+      for (const u of [
+        front.rawImageSrc,
+        front.imageSrc,
+        back.rawImageSrc,
+        back.imageSrc,
+      ]) {
+        if (u) urls.add(u);
+      }
+      for (const u of urls) {
+        URL.revokeObjectURL(u);
+      }
     };
-  }, [front.imageSrc, back.imageSrc]);
+  }, [front.rawImageSrc, front.imageSrc, back.rawImageSrc, back.imageSrc]);
 
   const frontResult = useMemo(
     () => computeSideResult(front.guides),
@@ -54,11 +66,17 @@ export function CenteringApp() {
   const onResetAll = () => {
     setViewerMagnify(null);
     setFront((s) => {
-      if (s.imageSrc) URL.revokeObjectURL(s.imageSrc);
+      if (s.rawImageSrc) URL.revokeObjectURL(s.rawImageSrc);
+      if (s.imageSrc && s.imageSrc !== s.rawImageSrc) {
+        URL.revokeObjectURL(s.imageSrc);
+      }
       return { ...initialSide };
     });
     setBack((s) => {
-      if (s.imageSrc) URL.revokeObjectURL(s.imageSrc);
+      if (s.rawImageSrc) URL.revokeObjectURL(s.rawImageSrc);
+      if (s.imageSrc && s.imageSrc !== s.rawImageSrc) {
+        URL.revokeObjectURL(s.imageSrc);
+      }
       return { ...initialSide };
     });
   };

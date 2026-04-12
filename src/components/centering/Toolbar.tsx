@@ -36,6 +36,14 @@ type ToolbarProps = {
   onGuideColorChange: (hex: string) => void;
   viewerMagnifyActive: ViewerMagnifyFactor | null;
   onViewerMagnify: (factor: ViewerMagnifyFactor | null) => void;
+  perspectiveMode: boolean;
+  perspectiveApplyEnabled: boolean;
+  perspectiveHint: string | null;
+  isRectified: boolean;
+  onOpenPerspective: () => void;
+  onPerspectiveApply: () => void;
+  onPerspectiveCancel: () => void;
+  onResetRectification: () => void;
 };
 
 export function Toolbar({
@@ -49,6 +57,14 @@ export function Toolbar({
   onGuideColorChange,
   viewerMagnifyActive,
   onViewerMagnify,
+  perspectiveMode,
+  perspectiveApplyEnabled,
+  perspectiveHint,
+  isRectified,
+  onOpenPerspective,
+  onPerspectiveApply,
+  onPerspectiveCancel,
+  onResetRectification,
 }: ToolbarProps) {
   const rotationShown = normalizeRotationDeg(transform.rotation);
 
@@ -80,7 +96,43 @@ export function Toolbar({
         </button>
         <button
           type="button"
-          disabled={!hasImage}
+          disabled={!hasImage || perspectiveMode}
+          onClick={onOpenPerspective}
+          className={`${btnBase} border-zinc-800 bg-zinc-950/70 text-zinc-300 hover:bg-zinc-900/80`}
+        >
+          Perspective
+        </button>
+        {perspectiveMode ? (
+          <>
+            <button
+              type="button"
+              disabled={!perspectiveApplyEnabled}
+              onClick={onPerspectiveApply}
+              className={`${btnBase} border-emerald-500/30 bg-emerald-500/15 font-medium text-emerald-200 hover:bg-emerald-500/20`}
+            >
+              Apply perspective
+            </button>
+            <button
+              type="button"
+              onClick={onPerspectiveCancel}
+              className={`${btnBase} border-zinc-800 bg-zinc-950/70 text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-300`}
+            >
+              Cancel
+            </button>
+          </>
+        ) : null}
+        {isRectified && !perspectiveMode ? (
+          <button
+            type="button"
+            onClick={onResetRectification}
+            className={`${btnBase} border-amber-500/25 bg-amber-500/10 text-amber-200/90 hover:bg-amber-500/15`}
+          >
+            Reset rectification
+          </button>
+        ) : null}
+        <button
+          type="button"
+          disabled={!hasImage || perspectiveMode}
           onClick={onResetView}
           className={`${btnBase} border-zinc-800 bg-zinc-950/70 text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-300`}
         >
@@ -88,22 +140,28 @@ export function Toolbar({
         </button>
         <button
           type="button"
+          disabled={perspectiveMode}
           onClick={onResetGuides}
           className={`${btnBase} border-zinc-800 bg-zinc-950/70 text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-300`}
         >
           Reset guides
         </button>
-        <label className="flex cursor-pointer items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-950/70 px-3 py-2 text-xs text-zinc-500">
+        <label
+          className={`flex items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-950/70 px-3 py-2 text-xs text-zinc-500 ${perspectiveMode ? "pointer-events-none opacity-45" : "cursor-pointer"}`}
+        >
           <span className="shrink-0">Guide</span>
           <input
             type="color"
             value={guideColor}
+            disabled={perspectiveMode}
             onChange={(e) => onGuideColorChange(e.target.value)}
-            className="h-7 w-10 cursor-pointer rounded-lg border border-zinc-700 bg-zinc-900 p-0.5"
+            className="h-7 w-10 cursor-pointer rounded-lg border border-zinc-700 bg-zinc-900 p-0.5 disabled:cursor-not-allowed"
             title="Guide line color"
           />
         </label>
-        <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-zinc-800 bg-zinc-950/70 px-2 py-1.5">
+        <div
+          className={`flex flex-wrap items-center gap-1.5 rounded-2xl border border-zinc-800 bg-zinc-950/70 px-2 py-1.5 ${perspectiveMode ? "pointer-events-none opacity-45" : ""}`}
+        >
           <span className="px-1 text-[10px] uppercase tracking-wider text-zinc-500">
             Viewer
           </span>
@@ -135,8 +193,14 @@ export function Toolbar({
         </div>
       </div>
 
+      {perspectiveMode && perspectiveHint ? (
+        <p className="text-xs text-amber-200/80">{perspectiveHint}</p>
+      ) : null}
+
       <div
-        className={`rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4 ${!hasImage ? "pointer-events-none opacity-45" : ""}`}
+        className={`rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4 ${
+          !hasImage || perspectiveMode ? "pointer-events-none opacity-45" : ""
+        }`}
       >
         <div className="flex flex-col gap-4">
           <label className="flex flex-col gap-2">

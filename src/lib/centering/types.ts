@@ -27,12 +27,28 @@ export type ViewTransform = {
   offsetY: number;
 };
 
+/** Point in source image natural pixel space. */
+export type Point2 = { x: number; y: number };
+
+/** Four corners: top-left, top-right, bottom-right, bottom-left (natural pixels). */
+export type PerspectiveQuad = {
+  tl: Point2;
+  tr: Point2;
+  br: Point2;
+  bl: Point2;
+};
+
 export type CardSideState = {
+  /** Original upload; never replaced by perspective warp. */
+  rawImageSrc: string | null;
+  /** Working image for centering (rectified blob URL or same as raw). */
   imageSrc: string | null;
   transform: ViewTransform;
   guides: GuideLines;
   /** Hex color for guide lines (native color input). */
   guideColor: string;
+  /** Last applied quad in raw image space; used when re-opening perspective. */
+  perspectiveCorners: PerspectiveQuad | null;
 };
 
 export type SideResult = {
