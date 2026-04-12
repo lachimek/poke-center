@@ -24,11 +24,7 @@ type ToolbarProps = {
   viewerMagnifyActive: ViewerMagnifyFactor | null;
   onViewerMagnify: (factor: ViewerMagnifyFactor | null) => void;
   perspectiveMode: boolean;
-  perspectiveApplyEnabled: boolean;
-  perspectiveHint: string | null;
   onOpenPerspective: () => void;
-  onPerspectiveApply: () => void;
-  onPerspectiveCancel: () => void;
 };
 
 export function Toolbar({
@@ -41,11 +37,7 @@ export function Toolbar({
   viewerMagnifyActive,
   onViewerMagnify,
   perspectiveMode,
-  perspectiveApplyEnabled,
-  perspectiveHint,
   onOpenPerspective,
-  onPerspectiveApply,
-  onPerspectiveCancel,
 }: ToolbarProps) {
   return (
     <div className="mb-4 flex flex-col gap-3">
@@ -69,25 +61,6 @@ export function Toolbar({
         >
           Perspective
         </button>
-        {perspectiveMode ? (
-          <>
-            <button
-              type="button"
-              disabled={!perspectiveApplyEnabled}
-              onClick={onPerspectiveApply}
-              className={`${btnBase} border-emerald-500/30 bg-emerald-500/15 font-medium text-emerald-200 hover:bg-emerald-500/20`}
-            >
-              Apply perspective
-            </button>
-            <button
-              type="button"
-              onClick={onPerspectiveCancel}
-              className={`${btnBase} border-zinc-800 bg-zinc-950/70 text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-300`}
-            >
-              Cancel
-            </button>
-          </>
-        ) : null}
         <button
           type="button"
           disabled={!hasImage || perspectiveMode}
@@ -150,10 +123,6 @@ export function Toolbar({
           })}
         </div>
       </div>
-
-      {perspectiveMode && perspectiveHint ? (
-        <p className="text-xs text-amber-200/80">{perspectiveHint}</p>
-      ) : null}
     </div>
   );
 }

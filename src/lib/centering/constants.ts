@@ -24,4 +24,4 @@ export const DEFAULT_VIEW_TRANSFORM = {
   offsetY: 0,
 } as const;
 
-export const DEFAULT_GUIDE_COLOR = "#d4af37";
+export const DEFAULT_GUIDE_COLOR = "#ff0000";

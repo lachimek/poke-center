@@ -47,6 +47,18 @@ type PerspectiveCornerEditorProps = {
     valid: boolean,
     hint: string | null,
   ) => void;
+  /** Omit long intro when the parent (e.g. modal) already explains the flow. */
+  embeddedInModal?: boolean;
+  /**
+   * Fires when the quad should refresh an expensive downstream (e.g. warp preview):
+   * after layout when not dragging, and when a drag ends. Parent still receives
+   * `onDraftChange` every frame for validation UI.
+   */
+  onStablePreviewChange?: (
+    quad: PerspectiveQuad | null,
+    valid: boolean,
+    hint: string | null,
+  ) => void;
 };
 
 function localImgRect(w: number, h: number): DOMRect {
@@ -135,6 +147,8 @@ export function PerspectiveCornerEditor({
   rawImageSrc,
   savedQuad,
   onDraftChange,
+  embeddedInModal = false,
+  onStablePreviewChange,
 }: PerspectiveCornerEditorProps) {
   const imgRef = useRef<HTMLImageElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -240,6 +254,17 @@ export function PerspectiveCornerEditor({
       }
     };
   }, [quad, natural, onDraftChange]);
+
+  useLayoutEffect(() => {
+    if (!onStablePreviewChange) return;
+    if (isDragging) return;
+    if (!quad || !natural) {
+      onStablePreviewChange(null, false, null);
+      return;
+    }
+    const r = isPerspectiveQuadValid(quad, natural.w, natural.h);
+    onStablePreviewChange(quad, r.ok, r.ok ? null : r.hint);
+  }, [isDragging, natural, onStablePreviewChange, quad]);
 
   const cycleFocusCorner = useCallback(() => {
     setFocusCorner((prev) => {
@@ -359,12 +384,14 @@ export function PerspectiveCornerEditor({
 
   return (
     <div className="flex w-full flex-col gap-3">
-      <p className="text-xs text-zinc-500">
-        Adjust corners on the full card first. When you need more precision,
-        switch to <span className="text-zinc-400">Corner zoom</span> — use the
-        grip outside each vertex so the crosshair stays visible, and{" "}
-        <span className="text-zinc-400">Next corner</span> to cycle focus.
-      </p>
+      {!embeddedInModal ? (
+        <p className="text-xs text-zinc-500">
+          Adjust corners on the full card first. When you need more precision,
+          switch to <span className="text-zinc-400">Corner zoom</span> — use the
+          grip outside each vertex so the crosshair stays visible, and{" "}
+          <span className="text-zinc-400">Next corner</span> to cycle focus.
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
         <button

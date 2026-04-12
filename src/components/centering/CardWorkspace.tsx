@@ -18,7 +18,7 @@ import type {
   ViewTransform,
 } from "@/lib/centering/types";
 import { CardViewer } from "./CardViewer";
-import { PerspectiveCornerEditor } from "./PerspectiveCornerEditor";
+import { PerspectiveModal } from "./PerspectiveModal";
 import { Toolbar } from "./Toolbar";
 
 function SideMetrics({ result }: { result: SideResult }) {
@@ -96,6 +96,9 @@ export function CardWorkspace({
     useState<PerspectiveQuad | null>(null);
   const [perspectiveValid, setPerspectiveValid] = useState(false);
   const [perspectiveHint, setPerspectiveHint] = useState<string | null>(null);
+  const [perspectivePreviewQuad, setPerspectivePreviewQuad] =
+    useState<PerspectiveQuad | null>(null);
+  const [perspectivePreviewValid, setPerspectivePreviewValid] = useState(false);
   const replaceInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -104,6 +107,8 @@ export function CardWorkspace({
       setPerspectiveDraft(null);
       setPerspectiveValid(false);
       setPerspectiveHint(null);
+      setPerspectivePreviewQuad(null);
+      setPerspectivePreviewValid(false);
     }
   }, [state.rawImageSrc]);
 
@@ -115,6 +120,8 @@ export function CardWorkspace({
       setPerspectiveDraft(null);
       setPerspectiveValid(false);
       setPerspectiveHint(null);
+      setPerspectivePreviewQuad(null);
+      setPerspectivePreviewValid(false);
       setState((s) => {
         if (s.rawImageSrc) URL.revokeObjectURL(s.rawImageSrc);
         if (s.imageSrc && s.imageSrc !== s.rawImageSrc) {
@@ -169,6 +176,8 @@ export function CardWorkspace({
     setPerspectiveDraft(null);
     setPerspectiveValid(false);
     setPerspectiveHint(null);
+    setPerspectivePreviewQuad(null);
+    setPerspectivePreviewValid(false);
   }, [state.rawImageSrc]);
 
   const onPerspectiveCancel = useCallback(() => {
@@ -176,6 +185,8 @@ export function CardWorkspace({
     setPerspectiveDraft(null);
     setPerspectiveValid(false);
     setPerspectiveHint(null);
+    setPerspectivePreviewQuad(null);
+    setPerspectivePreviewValid(false);
   }, []);
 
   const onPerspectiveDraftChange = useCallback(
@@ -183,6 +194,14 @@ export function CardWorkspace({
       setPerspectiveDraft(quad);
       setPerspectiveValid(valid);
       setPerspectiveHint(hint);
+    },
+    [],
+  );
+
+  const onStablePerspectivePreviewChange = useCallback(
+    (quad: PerspectiveQuad | null, valid: boolean, _hint: string | null) => {
+      setPerspectivePreviewQuad(quad);
+      setPerspectivePreviewValid(valid);
     },
     [],
   );
@@ -220,6 +239,8 @@ export function CardWorkspace({
             setPerspectiveDraft(null);
             setPerspectiveValid(false);
             setPerspectiveHint(null);
+            setPerspectivePreviewQuad(null);
+            setPerspectivePreviewValid(false);
           },
           "image/png",
           1,
@@ -269,21 +290,27 @@ export function CardWorkspace({
         viewerMagnifyActive={viewerMagnifyActive}
         onViewerMagnify={onViewerMagnify}
         perspectiveMode={perspectiveMode}
-        perspectiveApplyEnabled={perspectiveValid && !!perspectiveDraft}
-        perspectiveHint={perspectiveHint}
         onOpenPerspective={onOpenPerspective}
-        onPerspectiveApply={onPerspectiveApply}
-        onPerspectiveCancel={onPerspectiveCancel}
       />
 
       {perspectiveMode && state.rawImageSrc ? (
-        <PerspectiveCornerEditor
-          key={perspectiveSession}
+        <PerspectiveModal
           rawImageSrc={state.rawImageSrc}
           savedQuad={state.perspectiveCorners}
+          sessionKey={perspectiveSession}
           onDraftChange={onPerspectiveDraftChange}
+          onStablePreviewChange={onStablePerspectivePreviewChange}
+          perspectiveDraft={perspectiveDraft}
+          perspectiveValid={perspectiveValid}
+          perspectivePreviewQuad={perspectivePreviewQuad}
+          perspectivePreviewValid={perspectivePreviewValid}
+          perspectiveHint={perspectiveHint}
+          onConfirm={onPerspectiveApply}
+          onCancel={onPerspectiveCancel}
         />
-      ) : (
+      ) : null}
+
+      {!perspectiveMode ? (
         <CardViewer
           key={state.imageSrc ?? "empty"}
           imageSrc={state.imageSrc}
@@ -295,7 +322,7 @@ export function CardWorkspace({
           fitRequestId={fitRequestId}
           onUpload={onUpload}
         />
-      )}
+      ) : null}
 
       <SideMetrics result={sideResult} />
     </section>
