@@ -1,6 +1,14 @@
 import { sideMeetsMinLoBothAxes } from "./math";
 import type { SideResult } from "./types";
 
+/** Short copy for UI tooltips — rules mirrored in `summarizeCenteringByCompany`. */
+export const GRADING_COMPANY_TOOLTIPS: Record<string, string> = {
+  PSA: "PSA 10 (Gem Mint): modeled as front ≤55/45 on every axis (smaller margin share ≥45%) and back up to 75/25 (≥25%). Edges, surface, and print still decide real grades.",
+  BGS: "BGS: we show the best of 10 Black Label (~50/50 on both faces), 10 Pristine Gold (≤55/45 both), or 9.5 Gem Mint (front ≤55/45, back ≤60/40). Real Black Label also needs perfect subs.",
+  CGC: "CGC: best of 10 Pristine (≤55/45 both), 10 Gem Mint new (≤60/40 both), or 9.5 Gem Mint (front ≤55/45, back ≤60/40).",
+  ACE: "ACE 10: modeled as ≤60/40 on both horizontal and vertical for each face. No separate top label in this table.",
+};
+
 export type CompanyCenteringSummary = {
   company: string;
   /** Highest listed tier whose centering thresholds pass; null if none. */

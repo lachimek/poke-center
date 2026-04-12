@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { summarizeCenteringByCompany } from "@/lib/centering/gradeEstimate";
+import { HoverTooltip } from "@/components/ui/HoverTooltip";
+import {
+  GRADING_COMPANY_TOOLTIPS,
+  summarizeCenteringByCompany,
+} from "@/lib/centering/gradeEstimate";
 import type { SideResult } from "@/lib/centering/types";
 
 type SummaryPanelProps = {
@@ -41,9 +45,12 @@ export function SummaryPanel({ front, back }: SummaryPanelProps) {
               key={company}
               className="flex items-start justify-between gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/60 px-4 py-3"
             >
-              <span className="shrink-0 text-sm font-medium text-zinc-300">
-                {company}
-              </span>
+              <HoverTooltip
+                className="shrink-0"
+                label={company}
+                content={GRADING_COMPANY_TOOLTIPS[company] ?? ""}
+                side="top"
+              />
               <span
                 className={`text-right text-sm font-medium leading-snug ${
                   qualifies ? "text-emerald-200" : "text-zinc-500"
