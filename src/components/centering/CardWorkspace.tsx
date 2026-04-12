@@ -4,40 +4,21 @@ import { FoldHorizontal, FoldVertical } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DEFAULT_GUIDES,
-  DEFAULT_VIEW_TRANSFORM,
 } from "@/lib/centering/constants";
-import { warpToCardSize } from "@/lib/centering/perspective";
+import { readFileAsDataUrl } from "@/lib/centering/imageUtils";
 import type {
   CardSide,
   CardSideState,
-  PerspectiveQuad,
   SideResult,
   ViewerMagnify,
   ViewerMagnifyFactor,
   ViewTransform,
 } from "@/lib/centering/types";
+import { usePerspectiveSession } from "@/hooks/usePerspectiveSession";
 import { useCenteringStore } from "@/stores/centeringStore";
 import { CardViewer } from "./CardViewer";
 import { PerspectiveModal } from "./PerspectiveModal";
 import { Toolbar } from "./Toolbar";
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const r = reader.result;
-      if (typeof r !== "string") {
-        reject(new Error("Expected data URL"));
-        return;
-      }
-      resolve(r);
-    };
-    reader.onerror = () => {
-      reject(reader.error ?? new Error("Failed to read file"));
-    };
-    reader.readAsDataURL(file);
-  });
-}
 
 function SideMetrics({ result }: { result: SideResult }) {
   return (
@@ -108,17 +89,32 @@ export function CardWorkspace({
     viewerMagnify?.side === side ? viewerMagnify.factor : null;
   const viewerScale = viewerMagnify?.side === side ? viewerMagnify.factor : 1;
   const [fitRequestId, setFitRequestId] = useState(0);
-  const [perspectiveMode, setPerspectiveMode] = useState(false);
-  const [perspectiveSession, setPerspectiveSession] = useState(0);
-  const [perspectiveDraft, setPerspectiveDraft] =
-    useState<PerspectiveQuad | null>(null);
-  const [perspectiveValid, setPerspectiveValid] = useState(false);
-  const [perspectiveHint, setPerspectiveHint] = useState<string | null>(null);
-  const [perspectivePreviewQuad, setPerspectivePreviewQuad] =
-    useState<PerspectiveQuad | null>(null);
-  const [perspectivePreviewValid, setPerspectivePreviewValid] = useState(false);
   const replaceInputRef = useRef<HTMLInputElement>(null);
   const prevViewerScaleRef = useRef<number | null>(null);
+
+  const onFitRequest = useCallback(() => {
+    setFitRequestId((n) => n + 1);
+  }, []);
+
+  const {
+    perspectiveMode,
+    perspectiveSession,
+    perspectiveDraft,
+    perspectiveValid,
+    perspectiveHint,
+    perspectivePreviewQuad,
+    perspectivePreviewValid,
+    openPerspective,
+    cancelPerspective,
+    applyPerspective,
+    onPerspectiveDraftChange,
+    onStablePerspectivePreviewChange,
+    openPerspectiveAfterUpload,
+  } = usePerspectiveSession({
+    side,
+    rawImageSrc: state.rawImageSrc,
+    onFitRequest,
+  });
 
   useEffect(() => {
     onPerspectiveModeChange?.(perspectiveMode);
@@ -135,43 +131,18 @@ export function CardWorkspace({
     }
   }, [viewerScale]);
 
-  useEffect(() => {
-    if (!state.rawImageSrc) {
-      setPerspectiveMode(false);
-      setPerspectiveDraft(null);
-      setPerspectiveValid(false);
-      setPerspectiveHint(null);
-      setPerspectivePreviewQuad(null);
-      setPerspectivePreviewValid(false);
-    }
-  }, [state.rawImageSrc]);
-
   const onUpload = useCallback(
     (file: File) => {
       void readFileAsDataUrl(file).then(
         (dataUrl) => {
-          setPerspectiveSession((n) => n + 1);
-          setPerspectiveMode(true);
-          setPerspectiveDraft(null);
-          setPerspectiveValid(false);
-          setPerspectiveHint(null);
-          setPerspectivePreviewQuad(null);
-          setPerspectivePreviewValid(false);
-          setSide(side, (s) => ({
-            ...s,
-            rawImageSrc: dataUrl,
-            imageSrc: dataUrl,
-            perspectiveCorners: null,
-            transform: { ...DEFAULT_VIEW_TRANSFORM },
-            guides: { ...DEFAULT_GUIDES },
-          }));
+          openPerspectiveAfterUpload(dataUrl);
         },
         () => {
-          setPerspectiveHint("Could not read image file.");
+          // Error shown via perspective hint if modal is open
         },
       );
     },
-    [setSide, side],
+    [openPerspectiveAfterUpload],
   );
 
   const onTransformChange = useCallback(
@@ -202,79 +173,6 @@ export function CardWorkspace({
   const onResetGuides = useCallback(() => {
     setSide(side, (s) => ({ ...s, guides: { ...DEFAULT_GUIDES } }));
   }, [setSide, side]);
-
-  const onOpenPerspective = useCallback(() => {
-    if (!state.rawImageSrc) return;
-    setPerspectiveSession((n) => n + 1);
-    setPerspectiveMode(true);
-    setPerspectiveDraft(null);
-    setPerspectiveValid(false);
-    setPerspectiveHint(null);
-    setPerspectivePreviewQuad(null);
-    setPerspectivePreviewValid(false);
-  }, [state.rawImageSrc]);
-
-  const onPerspectiveCancel = useCallback(() => {
-    setPerspectiveMode(false);
-    setPerspectiveDraft(null);
-    setPerspectiveValid(false);
-    setPerspectiveHint(null);
-    setPerspectivePreviewQuad(null);
-    setPerspectivePreviewValid(false);
-  }, []);
-
-  const onPerspectiveDraftChange = useCallback(
-    (quad: PerspectiveQuad, valid: boolean, hint: string | null) => {
-      setPerspectiveDraft(quad);
-      setPerspectiveValid(valid);
-      setPerspectiveHint(hint);
-    },
-    [],
-  );
-
-  const onStablePerspectivePreviewChange = useCallback(
-    (quad: PerspectiveQuad | null, valid: boolean, _hint: string | null) => {
-      setPerspectivePreviewQuad(quad);
-      setPerspectivePreviewValid(valid);
-    },
-    [],
-  );
-
-  const onPerspectiveApply = useCallback(() => {
-    if (!state.rawImageSrc || !perspectiveDraft || !perspectiveValid) {
-      return;
-    }
-    const quad = perspectiveDraft;
-    const src = state.rawImageSrc;
-    const img = new window.Image();
-    img.decoding = "async";
-    img.src = src;
-    img.onload = () => {
-      try {
-        const canvas = warpToCardSize(img, quad);
-        const dataUrl = canvas.toDataURL("image/png");
-        setSide(side, (s) => ({
-          ...s,
-          imageSrc: dataUrl,
-          perspectiveCorners: quad,
-          transform: { ...DEFAULT_VIEW_TRANSFORM },
-          guides: { ...DEFAULT_GUIDES },
-        }));
-        setFitRequestId((n) => n + 1);
-        setPerspectiveMode(false);
-        setPerspectiveDraft(null);
-        setPerspectiveValid(false);
-        setPerspectiveHint(null);
-        setPerspectivePreviewQuad(null);
-        setPerspectivePreviewValid(false);
-      } catch {
-        setPerspectiveHint("Could not build rectified image.");
-      }
-    };
-    img.onerror = () => {
-      setPerspectiveHint("Could not load image for warp.");
-    };
-  }, [perspectiveDraft, perspectiveValid, setSide, side, state.rawImageSrc]);
 
   return (
     <section className="flex min-w-0 flex-col rounded-3xl border border-zinc-800 bg-zinc-900/70 p-5 shadow-2xl shadow-black/20">
@@ -311,7 +209,7 @@ export function CardWorkspace({
         viewerMagnifyActive={viewerMagnifyActive}
         onViewerMagnify={onViewerMagnify}
         perspectiveMode={perspectiveMode}
-        onOpenPerspective={onOpenPerspective}
+        onOpenPerspective={openPerspective}
       />
 
       {perspectiveMode && state.rawImageSrc ? (
@@ -326,8 +224,8 @@ export function CardWorkspace({
           perspectivePreviewQuad={perspectivePreviewQuad}
           perspectivePreviewValid={perspectivePreviewValid}
           perspectiveHint={perspectiveHint}
-          onConfirm={onPerspectiveApply}
-          onCancel={onPerspectiveCancel}
+          onConfirm={applyPerspective}
+          onCancel={cancelPerspective}
         />
       ) : null}
 

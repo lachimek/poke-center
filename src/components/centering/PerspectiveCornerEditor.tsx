@@ -1,43 +1,23 @@
 "use client";
 
-import { ChevronRight, GripVertical, LayoutGrid } from "lucide-react";
+import { ChevronRight, LayoutGrid } from "lucide-react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
-import {
-  clientToNaturalFromContain,
-  defaultPerspectiveQuad,
   isPerspectiveQuadValid,
   naturalToOverlayPx,
-  overlayPxToNatural,
 } from "@/lib/centering/perspective";
-import type { PerspectiveQuad, Point2 } from "@/lib/centering/types";
-
-type CornerId = "tl" | "tr" | "br" | "bl";
-
-const LABELS: Record<CornerId, string> = {
-  tl: "Top-left",
-  tr: "Top-right",
-  br: "Bottom-right",
-  bl: "Bottom-left",
-};
-
-const ORDER: CornerId[] = ["tl", "tr", "br", "bl"];
-
-/** Outward diagonal from corner in overlay space (before normalize). */
-const HANDLE_OUTWARD: Record<CornerId, { x: number; y: number }> = {
-  tl: { x: -1, y: -1 },
-  tr: { x: 1, y: -1 },
-  br: { x: 1, y: 1 },
-  bl: { x: -1, y: 1 },
-};
+import type { PerspectiveQuad } from "@/lib/centering/types";
+import {
+  type CornerId,
+  type LiveStateRef,
+  CORNER_ORDER,
+  CORNER_LABELS,
+  useCornerDrag,
+} from "@/hooks/useCornerDrag";
+import { useImageLayout } from "@/hooks/useImageLayout";
+import { QuadOverlaySvg } from "./QuadOverlaySvg";
 
 const ZOOM_SCALE = 2.85;
-const HANDLE_OFFSET_PX = 52;
 
 type PerspectiveCornerEditorProps = {
   rawImageSrc: string;
@@ -47,13 +27,7 @@ type PerspectiveCornerEditorProps = {
     valid: boolean,
     hint: string | null,
   ) => void;
-  /** Omit long intro when the parent (e.g. modal) already explains the flow. */
   embeddedInModal?: boolean;
-  /**
-   * Fires when the quad should refresh an expensive downstream (e.g. warp preview):
-   * after layout when not dragging, and when a drag ends. Parent still receives
-   * `onDraftChange` every frame for validation UI.
-   */
   onStablePreviewChange?: (
     quad: PerspectiveQuad | null,
     valid: boolean,
@@ -65,84 +39,6 @@ function localImgRect(w: number, h: number): DOMRect {
   return new DOMRect(0, 0, w, h);
 }
 
-function handleOverlayPosition(
-  cornerId: CornerId,
-  cx: number,
-  cy: number,
-): { x: number; y: number } {
-  const u = HANDLE_OUTWARD[cornerId];
-  const n = Math.hypot(u.x, u.y);
-  const k = HANDLE_OFFSET_PX / n;
-  return { x: cx + u.x * k, y: cy + u.y * k };
-}
-
-type DragRef = {
-  corner: CornerId;
-  startCorner: { x: number; y: number };
-  startNatural: { x: number; y: number };
-};
-
-/** Latest interaction state — avoids unstable callbacks that depend on `quad`. */
-type LiveStateRef = {
-  natural: { w: number; h: number } | null;
-  displaySize: { w: number; h: number };
-  viewportSize: { w: number; h: number };
-  focusCorner: CornerId;
-  quad: PerspectiveQuad | null;
-  fullCardView: boolean;
-};
-
-function pointerClientToNatural(
-  clientX: number,
-  clientY: number,
-  img: HTMLImageElement,
-  live: LiveStateRef,
-  zoomAnchor: { x: number; y: number } | null,
-): Point2 | null {
-  const nat = live.natural;
-  if (!nat || live.displaySize.w < 1 || live.displaySize.h < 1) return null;
-
-  const dw = live.displaySize.w;
-  const dh = live.displaySize.h;
-  const nw = nat.w;
-  const nh = nat.h;
-
-  if (live.fullCardView) {
-    const rect = img.getBoundingClientRect();
-    const p = clientToNaturalFromContain(clientX, clientY, rect, nw, nh);
-    return {
-      x: Math.max(0, Math.min(nw, p.x)),
-      y: Math.max(0, Math.min(nh, p.y)),
-    };
-  }
-
-  const vpEl = img.closest("[data-pc-zoom-viewport]") as HTMLElement | null;
-  if (!vpEl) return null;
-  const vp = vpEl.getBoundingClientRect();
-  const vw = vpEl.clientWidth;
-  const vh = vpEl.clientHeight;
-  if (vw < 1 || vh < 1 || !live.quad) return null;
-
-  const localRect = localImgRect(dw, dh);
-  const c = live.quad[live.focusCorner];
-  if (!c) return null;
-
-  const { x: cx, y: cy } = zoomAnchor
-    ? zoomAnchor
-    : naturalToOverlayPx(c, localRect, nw, nh);
-
-  const Z = ZOOM_SCALE;
-  const px = clientX - vp.left;
-  const py = clientY - vp.top;
-  const ix = (px - vw / 2) / Z + cx;
-  const iy = (py - vh / 2) / Z + cy;
-  const p = overlayPxToNatural(ix, iy, dw, dh, nw, nh);
-  return {
-    x: Math.max(0, Math.min(nw, p.x)),
-    y: Math.max(0, Math.min(nh, p.y)),
-  };
-}
-
 export function PerspectiveCornerEditor({
   rawImageSrc,
   savedQuad,
@@ -150,23 +46,25 @@ export function PerspectiveCornerEditor({
   embeddedInModal = false,
   onStablePreviewChange,
 }: PerspectiveCornerEditorProps) {
-  const imgRef = useRef<HTMLImageElement>(null);
-  const viewportRef = useRef<HTMLDivElement>(null);
-  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
-  const [quad, setQuad] = useState<PerspectiveQuad | null>(null);
-  const [displaySize, setDisplaySize] = useState({ w: 0, h: 0 });
-  const [viewportSize, setViewportSize] = useState({ w: 0, h: 0 });
   const [focusCorner, setFocusCorner] = useState<CornerId>("tl");
-  /** Full card first avoids an empty corner-zoom viewport before layout (fixes stuck “Loading”). */
   const [fullCardView, setFullCardView] = useState(true);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragRef = useRef<DragRef | null>(null);
-  const handleUpRef = useRef<() => void>(() => {});
-  const lastRawSrcRef = useRef<string | null>(null);
-  /** Overlay (px) center for zoom while dragging — keeps the view fixed until release. */
-  const zoomPanFrozenRef = useRef<{ x: number; y: number } | null>(null);
-  /** Same anchor for screen→natural mapping during zoom drag. */
-  const zoomMapAnchorRef = useRef<{ x: number; y: number } | null>(null);
+
+  const {
+    imgRef,
+    viewportRef,
+    natural,
+    quad,
+    setQuad,
+    displaySize,
+    viewportSize,
+    bootstrapFromImage,
+  } = useImageLayout({
+    rawImageSrc,
+    savedQuad,
+    fullCardView,
+    onDraftChange,
+  });
+
   const liveRef = useRef<LiveStateRef>({
     natural: null,
     displaySize: { w: 0, h: 0 },
@@ -175,61 +73,6 @@ export function PerspectiveCornerEditor({
     quad: null,
     fullCardView: true,
   });
-  const draftRafRef = useRef<number | null>(null);
-
-  const noopPointerUp = useCallback(() => {
-    handleUpRef.current();
-  }, []);
-
-  useEffect(() => {
-    if (rawImageSrc !== lastRawSrcRef.current) {
-      lastRawSrcRef.current = rawImageSrc;
-      setNatural(null);
-      setQuad(null);
-    }
-  }, [rawImageSrc]);
-
-  const bootstrapFromImage = useCallback(() => {
-    const el = imgRef.current;
-    if (!el?.naturalWidth) return;
-    const w = el.naturalWidth;
-    const h = el.naturalHeight;
-    setNatural({ w, h });
-    setQuad((prev) => {
-      if (prev) return prev;
-      return savedQuad ?? defaultPerspectiveQuad(w, h);
-    });
-  }, [savedQuad]);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: also when rawImageSrc changes (new blob)
-  useLayoutEffect(() => {
-    bootstrapFromImage();
-  }, [bootstrapFromImage, rawImageSrc]);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: new <img> when toggling zoom/full or replacing blob
-  useLayoutEffect(() => {
-    const el = imgRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => {
-      setDisplaySize({ w: el.offsetWidth, h: el.offsetHeight });
-    });
-    ro.observe(el);
-    setDisplaySize({ w: el.offsetWidth, h: el.offsetHeight });
-    return () => ro.disconnect();
-  }, [fullCardView, rawImageSrc]);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: viewport only in corner-zoom mode; measure before paint
-  useLayoutEffect(() => {
-    const el = viewportRef.current;
-    if (!el) return;
-    const measure = () =>
-      setViewportSize({ w: el.clientWidth, h: el.clientHeight });
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [fullCardView]);
-
   liveRef.current = {
     natural,
     displaySize,
@@ -239,21 +82,11 @@ export function PerspectiveCornerEditor({
     fullCardView,
   };
 
-  useEffect(() => {
-    if (!quad || !natural) return;
-    if (draftRafRef.current !== null) cancelAnimationFrame(draftRafRef.current);
-    draftRafRef.current = requestAnimationFrame(() => {
-      draftRafRef.current = null;
-      const r = isPerspectiveQuadValid(quad, natural.w, natural.h);
-      onDraftChange(quad, r.ok, r.ok ? null : r.hint);
-    });
-    return () => {
-      if (draftRafRef.current !== null) {
-        cancelAnimationFrame(draftRafRef.current);
-        draftRafRef.current = null;
-      }
-    };
-  }, [quad, natural, onDraftChange]);
+  const { isDragging, startDrag, zoomPanFrozenRef } = useCornerDrag({
+    imgRef,
+    liveRef,
+    setQuad,
+  });
 
   useLayoutEffect(() => {
     if (!onStablePreviewChange) return;
@@ -268,96 +101,9 @@ export function PerspectiveCornerEditor({
 
   const cycleFocusCorner = useCallback(() => {
     setFocusCorner((prev) => {
-      const i = ORDER.indexOf(prev);
-      return ORDER[(i + 1) % 4] ?? "tl";
+      const i = CORNER_ORDER.indexOf(prev);
+      return CORNER_ORDER[(i + 1) % 4] ?? "tl";
     });
-  }, []);
-
-  const onWindowPointerMove = useCallback((e: PointerEvent) => {
-    const d = dragRef.current;
-    const img = imgRef.current;
-    if (!d || !img) return;
-    const p = pointerClientToNatural(
-      e.clientX,
-      e.clientY,
-      img,
-      liveRef.current,
-      zoomMapAnchorRef.current,
-    );
-    if (!p) return;
-    const nx = d.startCorner.x + (p.x - d.startNatural.x);
-    const ny = d.startCorner.y + (p.y - d.startNatural.y);
-    const nat = liveRef.current.natural;
-    if (!nat) return;
-    const x = Math.max(0, Math.min(nat.w, nx));
-    const y = Math.max(0, Math.min(nat.h, ny));
-    setQuad((q) => {
-      if (!q) return q;
-      const prev = q[d.corner];
-      if (prev && Math.abs(prev.x - x) < 0.25 && Math.abs(prev.y - y) < 0.25) {
-        return q;
-      }
-      return { ...q, [d.corner]: { x, y } };
-    });
-  }, []);
-
-  useLayoutEffect(() => {
-    handleUpRef.current = () => {
-      dragRef.current = null;
-      zoomPanFrozenRef.current = null;
-      zoomMapAnchorRef.current = null;
-      setIsDragging(false);
-      window.removeEventListener("pointermove", onWindowPointerMove);
-      window.removeEventListener("pointerup", noopPointerUp);
-      window.removeEventListener("pointercancel", noopPointerUp);
-    };
-  }, [noopPointerUp, onWindowPointerMove]);
-
-  const startDrag = useCallback(
-    (corner: CornerId) => (e: React.PointerEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const img = imgRef.current;
-      if (!img) return;
-      const p = pointerClientToNatural(
-        e.clientX,
-        e.clientY,
-        img,
-        liveRef.current,
-        null,
-      );
-      const q = liveRef.current.quad?.[corner];
-      if (!p || !q) return;
-
-      if (!liveRef.current.fullCardView && liveRef.current.quad) {
-        const { w: nw, h: nh } = liveRef.current.natural ?? { w: 0, h: 0 };
-        const { w: dw, h: dh } = liveRef.current.displaySize;
-        if (nw > 0 && nh > 0 && dw > 0 && dh > 0) {
-          const localRect = localImgRect(dw, dh);
-          const anchor = naturalToOverlayPx(q, localRect, nw, nh);
-          zoomPanFrozenRef.current = anchor;
-          zoomMapAnchorRef.current = anchor;
-        }
-      }
-
-      dragRef.current = {
-        corner,
-        startCorner: { ...q },
-        startNatural: p,
-      };
-      setIsDragging(true);
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      window.addEventListener("pointermove", onWindowPointerMove);
-      window.addEventListener("pointerup", noopPointerUp);
-      window.addEventListener("pointercancel", noopPointerUp);
-    },
-    [noopPointerUp, onWindowPointerMove],
-  );
-
-  useEffect(() => {
-    return () => {
-      handleUpRef.current();
-    };
   }, []);
 
   const nw = natural?.w ?? 0;
@@ -405,7 +151,7 @@ export function PerspectiveCornerEditor({
         <span className="text-xs text-zinc-400">
           Focus:{" "}
           <span className="font-medium text-zinc-200">
-            {LABELS[focusCorner]}
+            {CORNER_LABELS[focusCorner]}
           </span>
         </span>
         <button
@@ -430,86 +176,17 @@ export function PerspectiveCornerEditor({
             className="block max-h-[min(70vh,720px)] w-full max-w-full object-contain select-none"
           />
           {quad && localRect && nw > 0 && nh > 0 ? (
-            <div
-              className="pointer-events-none absolute left-0 top-0"
-              style={{ width: dw, height: dh }}
-            >
-              <svg
-                className="absolute left-0 top-0 overflow-visible"
-                width={dw}
-                height={dh}
-                aria-hidden
-                role="presentation"
-              >
-                {ORDER.map((id, i) => {
-                  const next = ORDER[(i + 1) % 4];
-                  const pa = quad[id];
-                  const pb = next ? quad[next] : undefined;
-                  if (!next || !pa || !pb) return null;
-                  const a = naturalToOverlayPx(pa, localRect, nw, nh);
-                  const b = naturalToOverlayPx(pb, localRect, nw, nh);
-                  return (
-                    <line
-                      key={`${id}-${next}`}
-                      x1={a.x}
-                      y1={a.y}
-                      x2={b.x}
-                      y2={b.y}
-                      stroke="rgba(212,175,55,0.75)"
-                      strokeWidth={2}
-                    />
-                  );
-                })}
-              </svg>
-              {ORDER.map((id) => {
-                const pt = quad[id];
-                if (!pt) return null;
-                const { x: cx, y: cy } = naturalToOverlayPx(
-                  pt,
-                  localRect,
-                  nw,
-                  nh,
-                );
-                const { x: hx, y: hy } = handleOverlayPosition(id, cx, cy);
-                const isFocus = id === focusCorner;
-                return (
-                  <div key={id}>
-                    <svg
-                      className="pointer-events-none absolute overflow-visible"
-                      width={dw}
-                      height={dh}
-                      aria-hidden
-                      role="presentation"
-                    >
-                      <g
-                        stroke="rgba(250,204,21,0.95)"
-                        strokeWidth={isFocus ? 2 : 1.25}
-                      >
-                        <line x1={cx - 10} y1={cy} x2={cx + 10} y2={cy} />
-                        <line x1={cx} y1={cy - 10} x2={cx} y2={cy + 10} />
-                      </g>
-                    </svg>
-                    <button
-                      type="button"
-                      aria-label={`Drag ${LABELS[id]} corner`}
-                      className={`pointer-events-auto absolute flex h-12 w-9 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none flex-col items-center justify-center gap-0.5 rounded-xl border bg-zinc-950/95 shadow-lg active:cursor-grabbing ${
-                        isFocus
-                          ? "border-amber-400/90 ring-2 ring-amber-500/30"
-                          : "border-zinc-600/90"
-                      }`}
-                      style={{ left: hx, top: hy }}
-                      onPointerDown={startDrag(id)}
-                    >
-                      <GripVertical
-                        className="h-5 w-5 text-amber-200/90"
-                        aria-hidden
-                        strokeWidth={2}
-                      />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+            <QuadOverlaySvg
+              quad={quad}
+              localRect={localRect}
+              nw={nw}
+              nh={nh}
+              dw={dw}
+              dh={dh}
+              focusCorner={focusCorner}
+              startDrag={startDrag}
+              mode="full"
+            />
           ) : null}
         </div>
       ) : (
@@ -540,93 +217,17 @@ export function PerspectiveCornerEditor({
                 onLoad={bootstrapFromImage}
                 className="pointer-events-none block h-full w-full object-contain select-none"
               />
-              <div
-                className="pointer-events-none absolute left-0 top-0"
-                style={{ width: dw, height: dh }}
-              >
-                <svg
-                  className="absolute left-0 top-0 overflow-visible"
-                  width={dw}
-                  height={dh}
-                  aria-hidden
-                  role="presentation"
-                >
-                  {ORDER.map((id, i) => {
-                    const next = ORDER[(i + 1) % 4];
-                    const pa = quad[id];
-                    const pb = next ? quad[next] : undefined;
-                    if (!next || !pa || !pb) return null;
-                    const a = naturalToOverlayPx(pa, localRect, nw, nh);
-                    const b = naturalToOverlayPx(pb, localRect, nw, nh);
-                    return (
-                      <line
-                        key={`${id}-${next}`}
-                        x1={a.x}
-                        y1={a.y}
-                        x2={b.x}
-                        y2={b.y}
-                        stroke="rgba(212,175,55,0.55)"
-                        strokeWidth={1.5}
-                      />
-                    );
-                  })}
-                  {ORDER.map((id) => {
-                    const pt = quad[id];
-                    if (!pt) return null;
-                    const { x: cx, y: cy } = naturalToOverlayPx(
-                      pt,
-                      localRect,
-                      nw,
-                      nh,
-                    );
-                    const isFocus = id === focusCorner;
-                    return (
-                      <g
-                        key={`x-${id}`}
-                        stroke={
-                          isFocus
-                            ? "rgba(250,204,21,0.95)"
-                            : "rgba(250,204,21,0.45)"
-                        }
-                        strokeWidth={isFocus ? 2 : 1}
-                      >
-                        <line x1={cx - 12} y1={cy} x2={cx + 12} y2={cy} />
-                        <line x1={cx} y1={cy - 12} x2={cx} y2={cy + 12} />
-                      </g>
-                    );
-                  })}
-                </svg>
-                {(() => {
-                  const pt = quad[focusCorner];
-                  if (!pt) return null;
-                  const { x: cx, y: cy } = naturalToOverlayPx(
-                    pt,
-                    localRect,
-                    nw,
-                    nh,
-                  );
-                  const { x: hx, y: hy } = handleOverlayPosition(
-                    focusCorner,
-                    cx,
-                    cy,
-                  );
-                  return (
-                    <button
-                      type="button"
-                      aria-label={`Drag ${LABELS[focusCorner]} corner`}
-                      className="pointer-events-auto absolute flex h-12 w-9 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none flex-col items-center justify-center rounded-xl border border-amber-400/90 bg-zinc-950/95 shadow-lg ring-2 ring-amber-500/25 active:cursor-grabbing"
-                      style={{ left: hx, top: hy }}
-                      onPointerDown={startDrag(focusCorner)}
-                    >
-                      <GripVertical
-                        className="h-5 w-5 text-amber-200/90"
-                        aria-hidden
-                        strokeWidth={2}
-                      />
-                    </button>
-                  );
-                })()}
-              </div>
+              <QuadOverlaySvg
+                quad={quad}
+                localRect={localRect}
+                nw={nw}
+                nh={nh}
+                dw={dw}
+                dh={dh}
+                focusCorner={focusCorner}
+                startDrag={startDrag}
+                mode="zoom"
+              />
             </div>
           ) : (
             <div className="flex h-full min-h-[200px] items-center justify-center text-sm text-zinc-500">

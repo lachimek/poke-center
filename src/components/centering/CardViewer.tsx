@@ -1,21 +1,16 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { useRef } from "react";
 import {
   CARD_LOGICAL_HEIGHT,
   CARD_LOGICAL_WIDTH,
 } from "@/lib/centering/constants";
 import type { GuideLines, ViewTransform } from "@/lib/centering/types";
+import { useCardViewerTransform } from "@/hooks/useCardViewerTransform";
 import { GuideOverlay } from "./GuideOverlay";
 
-/** Max width of the card bezel at 1× viewer zoom (matches previous fixed `max-w-[472px]`). */
+/** Max width of the card bezel at 1x viewer zoom (matches previous fixed `max-w-[472px]`). */
 const VIEWER_BASE_MAX_WIDTH_PX = 472;
 
 type CardViewerProps = {
@@ -31,17 +26,6 @@ type CardViewerProps = {
   viewerScale?: number;
 };
 
-/** Scale image (contain) so it fills the frame; one axis touches the inner edge. */
-function fitScale(
-  frameW: number,
-  frameH: number,
-  natW: number,
-  natH: number,
-): number {
-  if (natW <= 0 || natH <= 0 || frameW <= 0 || frameH <= 0) return 1;
-  return Math.min(frameW / natW, frameH / natH);
-}
-
 export function CardViewer({
   imageSrc,
   transform,
@@ -53,149 +37,23 @@ export function CardViewer({
   onUpload,
   viewerScale = 1,
 }: CardViewerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const emptyFileRef = useRef<HTMLInputElement>(null);
-  const [framePx, setFramePx] = useState({ w: 1, h: 1 });
-  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
 
-  const panRef = useRef<{
-    startX: number;
-    startY: number;
-    startTransform: ViewTransform;
-  } | null>(null);
-
-  const transformRef = useRef(transform);
-  transformRef.current = transform;
-
-  const prevFrameWRef = useRef<number | null>(null);
-
-  // Reset width tracking when zoom changes so the resize handler does not distort transform.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: effect must re-run when viewerScale changes
-  useLayoutEffect(() => {
-    prevFrameWRef.current = null;
-  }, [viewerScale]);
-
-  useLayoutEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const ro = new ResizeObserver(() => {
-      const r = el.getBoundingClientRect();
-      setFramePx({ w: Math.max(1, r.width), h: Math.max(1, r.height) });
-    });
-    ro.observe(el);
-    const r = el.getBoundingClientRect();
-    setFramePx({ w: Math.max(1, r.width), h: Math.max(1, r.height) });
-    return () => ro.disconnect();
-  }, []);
-
-  useLayoutEffect(() => {
-    const w = framePx.w;
-    const prev = prevFrameWRef.current;
-
-    if (!imageSrc || w < 32) {
-      if (w >= 32) prevFrameWRef.current = w;
-      return;
-    }
-
-    if (prev === null || prev < 32) {
-      prevFrameWRef.current = w;
-      return;
-    }
-
-    const ratio = w / prev;
-    if (Math.abs(ratio - 1) > 0.004) {
-      const t = transformRef.current;
-      onTransformChange({
-        ...t,
-        scale: t.scale * ratio,
-        offsetX: t.offsetX * ratio,
-        offsetY: t.offsetY * ratio,
-      });
-    }
-
-    prevFrameWRef.current = w;
-  }, [framePx.w, imageSrc, onTransformChange]);
+  const {
+    containerRef,
+    framePx,
+    natural,
+    onImageLoad,
+    panHandlers,
+  } = useCardViewerTransform({
+    imageSrc,
+    transform,
+    onTransformChange,
+    fitRequestId,
+    viewerScale,
+  });
 
   const displayScale = framePx.w / CARD_LOGICAL_WIDTH;
-
-  const applyFit = useCallback(() => {
-    const el = containerRef.current;
-    if (!el || !natural) return;
-    const r = el.getBoundingClientRect();
-    const fw = Math.max(1, r.width);
-    const fh = Math.max(1, r.height);
-    const s = fitScale(fw, fh, natural.w, natural.h);
-    onTransformChange({
-      scale: s,
-      offsetX: 0,
-      offsetY: 0,
-    });
-  }, [natural, onTransformChange]);
-
-  useEffect(() => {
-    if (fitRequestId === 0 || !natural) return;
-    applyFit();
-  }, [fitRequestId, natural, applyFit]);
-
-  const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = e.currentTarget;
-    const applyFitFromImage = () => {
-      const w = img.naturalWidth;
-      const h = img.naturalHeight;
-      if (w <= 0 || h <= 0) return;
-      setNatural({ w, h });
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const el = containerRef.current;
-          if (!el) return;
-          const r = el.getBoundingClientRect();
-          const fw = Math.max(1, r.width);
-          const fh = Math.max(1, r.height);
-          const s = fitScale(fw, fh, w, h);
-          onTransformChange({
-            scale: s,
-            offsetX: 0,
-            offsetY: 0,
-          });
-        });
-      });
-    };
-
-    void img.decode().then(applyFitFromImage).catch(applyFitFromImage);
-  };
-
-  const panStart = (e: React.PointerEvent) => {
-    if (!imageSrc || !natural || e.button !== 0) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    panRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      startTransform: { ...transform },
-    };
-  };
-
-  const panMove = (e: React.PointerEvent) => {
-    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
-    const p = panRef.current;
-    if (!p) return;
-    onTransformChange({
-      ...p.startTransform,
-      offsetX: p.startTransform.offsetX + (e.clientX - p.startX),
-      offsetY: p.startTransform.offsetY + (e.clientY - p.startY),
-    });
-  };
-
-  const panEnd = (e: React.PointerEvent) => {
-    if (panRef.current) {
-      try {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      } catch {
-        /* */
-      }
-    }
-    panRef.current = null;
-  };
 
   const { scale, offsetX, offsetY } = transform;
   const nw = natural?.w ?? 0;
@@ -277,10 +135,7 @@ export function CardViewer({
             {imageSrc && (
               <div
                 className="absolute inset-0 z-[1] cursor-grab touch-none active:cursor-grabbing"
-                onPointerDown={panStart}
-                onPointerMove={panMove}
-                onPointerUp={panEnd}
-                onPointerCancel={panEnd}
+                {...panHandlers}
               >
                 <div
                   className="pointer-events-none absolute left-1/2 top-1/2"

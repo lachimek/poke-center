@@ -53,6 +53,36 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
+/** Clamp a lo/hi pair so they stay within [0, maxDim] with at least `gap` between them. */
+function clampAxisPair(
+  lo: number,
+  hi: number,
+  gap: number,
+  maxDim: number,
+): [number, number] {
+  let a = clamp(lo, 0, maxDim);
+  let b = clamp(hi, 0, maxDim);
+  if (b - a < gap) {
+    const mid = (a + b) * 0.5;
+    a = mid - gap * 0.5;
+    b = mid + gap * 0.5;
+  }
+  a = clamp(a, 0, maxDim - gap);
+  b = clamp(b, gap, maxDim);
+  if (b < a + gap) {
+    b = a + gap;
+  }
+  if (b > maxDim) {
+    b = maxDim;
+    a = maxDim - gap;
+  }
+  if (a < 0) {
+    a = 0;
+    b = gap;
+  }
+  return [a, b];
+}
+
 /**
  * Keeps left < right and top < bottom with at least `gap`, clamped to the logical card.
  */
@@ -62,48 +92,8 @@ export function clampGuides(
   h = CARD_LOGICAL_HEIGHT,
   gap = GUIDE_MIN_GAP,
 ): GuideLines {
-  let left = clamp(guides.left, 0, w);
-  let right = clamp(guides.right, 0, w);
-  if (right - left < gap) {
-    const mid = (left + right) * 0.5;
-    left = mid - gap * 0.5;
-    right = mid + gap * 0.5;
-  }
-  left = clamp(left, 0, w - gap);
-  right = clamp(right, gap, w);
-  if (right < left + gap) {
-    right = left + gap;
-  }
-  if (right > w) {
-    right = w;
-    left = w - gap;
-  }
-  if (left < 0) {
-    left = 0;
-    right = gap;
-  }
-
-  let top = clamp(guides.top, 0, h);
-  let bottom = clamp(guides.bottom, 0, h);
-  if (bottom - top < gap) {
-    const mid = (top + bottom) * 0.5;
-    top = mid - gap * 0.5;
-    bottom = mid + gap * 0.5;
-  }
-  top = clamp(top, 0, h - gap);
-  bottom = clamp(bottom, gap, h);
-  if (bottom < top + gap) {
-    bottom = top + gap;
-  }
-  if (bottom > h) {
-    bottom = h;
-    top = h - gap;
-  }
-  if (top < 0) {
-    top = 0;
-    bottom = gap;
-  }
-
+  const [left, right] = clampAxisPair(guides.left, guides.right, gap, w);
+  const [top, bottom] = clampAxisPair(guides.top, guides.bottom, gap, h);
   return { left, right, top, bottom };
 }
 

@@ -3,6 +3,7 @@ import {
   CARD_LOGICAL_WIDTH,
 } from "@/lib/centering/constants";
 import type { CompanyCenteringSummary } from "@/lib/centering/gradeEstimate";
+import { loadImageElement } from "@/lib/centering/imageUtils";
 import { clampGuides, guideStrokeColors } from "@/lib/centering/math";
 import type { CardSideState, SideResult } from "@/lib/centering/types";
 
@@ -30,21 +31,6 @@ const LINE_H: Record<FooterBlockKind, number> = {
 };
 
 const SECTION_GAP = 10;
-
-export function loadDecodedImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new window.Image();
-    img.decoding = "async";
-    img.onload = () => {
-      void img
-        .decode()
-        .then(() => resolve(img))
-        .catch(() => resolve(img));
-    };
-    img.onerror = () => reject(new Error("Failed to load image for export"));
-    img.src = src;
-  });
-}
 
 function wrapLineToWidth(
   ctx: CanvasRenderingContext2D,
@@ -268,8 +254,8 @@ export async function renderCenteringExportPng(
   }
 
   const [imgFront, imgBack] = await Promise.all([
-    loadDecodedImage(front.imageSrc),
-    loadDecodedImage(back.imageSrc),
+    loadImageElement(front.imageSrc),
+    loadImageElement(back.imageSrc),
   ]);
 
   const canvasW = CELL_W + EXPORT_PANEL_GAP + CELL_W;
