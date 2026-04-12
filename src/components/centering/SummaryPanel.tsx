@@ -1,70 +1,19 @@
 "use client";
 
-import { FoldHorizontal, FoldVertical } from "lucide-react";
-import { useCallback } from "react";
-import type { GuideLines, SideResult } from "@/lib/centering/types";
+import { useMemo } from "react";
+import { summarizeCenteringByCompany } from "@/lib/centering/gradeEstimate";
+import type { SideResult } from "@/lib/centering/types";
 
 type SummaryPanelProps = {
   front: SideResult;
   back: SideResult;
-  frontGuides: GuideLines;
-  backGuides: GuideLines;
-  onResetGuidesAll: () => void;
-  onResetAll: () => void;
 };
 
-function fmtGuides(g: GuideLines): string {
-  return `L ${g.left} · R ${g.right} · T ${g.top} · B ${g.bottom}`;
-}
-
-export function SummaryPanel({
-  front,
-  back,
-  frontGuides,
-  backGuides,
-  onResetGuidesAll,
-  onResetAll,
-}: SummaryPanelProps) {
-  const copyValues = useCallback(async () => {
-    const lines = [
-      "PokéCentering — summary",
-      `Front H: ${front.horizontalDisplay}  V: ${front.verticalDisplay}`,
-      `Back H: ${back.horizontalDisplay}  V: ${back.verticalDisplay}`,
-      `Front margins (logical px): L ${front.leftMargin.toFixed(1)} · R ${front.rightMargin.toFixed(1)} · T ${front.topMargin.toFixed(1)} · B ${front.bottomMargin.toFixed(1)}`,
-      `Back margins (logical px): L ${back.leftMargin.toFixed(1)} · R ${back.rightMargin.toFixed(1)} · T ${back.topMargin.toFixed(1)} · B ${back.bottomMargin.toFixed(1)}`,
-      `Front guides: ${fmtGuides(frontGuides)}`,
-      `Back guides: ${fmtGuides(backGuides)}`,
-    ];
-    const text = lines.join("\n");
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      /* ignore */
-    }
-  }, [front, back, frontGuides, backGuides]);
-
-  const rows: { label: string; value: string; horizontal: boolean }[] = [
-    {
-      label: "Front H",
-      value: front.horizontalDisplay,
-      horizontal: true,
-    },
-    {
-      label: "Front V",
-      value: front.verticalDisplay,
-      horizontal: false,
-    },
-    {
-      label: "Back H",
-      value: back.horizontalDisplay,
-      horizontal: true,
-    },
-    {
-      label: "Back V",
-      value: back.verticalDisplay,
-      horizontal: false,
-    },
-  ];
+export function SummaryPanel({ front, back }: SummaryPanelProps) {
+  const gradeSummary = useMemo(
+    () => summarizeCenteringByCompany(front, back),
+    [front, back],
+  );
 
   return (
     <aside className="flex min-w-0 flex-col gap-6">
@@ -74,37 +23,55 @@ export function SummaryPanel({
             <div className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">
               Summary
             </div>
-            <h3 className="text-lg font-medium text-zinc-100">Card result</h3>
+            <h3 className="text-lg font-medium text-zinc-100">
+              Centering grade hints
+            </h3>
           </div>
           <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300/90">
             Live
           </div>
         </div>
-        <div className="space-y-3">
-          {rows.map(({ label, value, horizontal }) => (
+        <p className="mb-3 text-xs leading-relaxed text-zinc-500">
+          Possible tier if centering alone matched common ratio cutoffs (both H
+          and V per face). Not official grading.
+        </p>
+        <div className="space-y-2">
+          {gradeSummary.map(({ company, bestTier, qualifies }) => (
             <div
-              key={label}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/60 px-4 py-3"
+              key={company}
+              className="flex items-start justify-between gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/60 px-4 py-3"
             >
-              <span className="flex items-center gap-2 text-sm text-zinc-400">
-                {horizontal ? (
-                  <FoldHorizontal
-                    className="h-4 w-4 shrink-0 text-zinc-500"
-                    aria-hidden
-                  />
-                ) : (
-                  <FoldVertical
-                    className="h-4 w-4 shrink-0 text-zinc-500"
-                    aria-hidden
-                  />
-                )}
-                {label}
+              <span className="shrink-0 text-sm font-medium text-zinc-300">
+                {company}
               </span>
-              <span className="text-sm font-medium tabular-nums text-zinc-100">
-                {value}
+              <span
+                className={`text-right text-sm font-medium leading-snug ${
+                  qualifies ? "text-emerald-200" : "text-zinc-500"
+                }`}
+              >
+                {qualifies && bestTier ? bestTier : "Below listed tiers"}
               </span>
             </div>
           ))}
+        </div>
+        <div className="mt-4 border-t border-zinc-800/80 pt-4">
+          <div className="mb-2 text-[11px] uppercase tracking-[0.18em] text-zinc-600">
+            Your ratios
+          </div>
+          <dl className="grid gap-2 text-sm">
+            <div className="flex justify-between gap-2 text-zinc-400">
+              <dt>Front</dt>
+              <dd className="tabular-nums text-zinc-200">
+                {front.horizontalDisplay} · {front.verticalDisplay}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-2 text-zinc-400">
+              <dt>Back</dt>
+              <dd className="tabular-nums text-zinc-200">
+                {back.horizontalDisplay} · {back.verticalDisplay}
+              </dd>
+            </div>
+          </dl>
         </div>
       </section>
 
@@ -127,46 +94,6 @@ export function SummaryPanel({
             Front and back are independent. This tool is for pre-screening only
             — not official grading.
           </div>
-        </div>
-      </section>
-
-      <section className="rounded-3xl border border-zinc-800 bg-zinc-900/70 p-5 shadow-2xl shadow-black/20">
-        <div className="mb-4">
-          <div className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">
-            Actions
-          </div>
-          <h3 className="text-lg font-medium text-zinc-100">Workflow</h3>
-        </div>
-        <div className="grid gap-3">
-          <button
-            type="button"
-            onClick={() => void copyValues()}
-            className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-3 text-left text-sm text-zinc-300 transition hover:bg-zinc-900/80"
-          >
-            Copy values
-          </button>
-          <button
-            type="button"
-            onClick={onResetGuidesAll}
-            className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-3 text-left text-sm text-zinc-300 transition hover:bg-zinc-900/80"
-          >
-            Reset guides (both sides)
-          </button>
-          <button
-            type="button"
-            onClick={onResetAll}
-            className="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-3 text-left text-sm text-zinc-300 transition hover:bg-zinc-900/80"
-          >
-            Reset all
-          </button>
-          <button
-            type="button"
-            disabled
-            className="cursor-not-allowed rounded-2xl border border-emerald-500/15 bg-emerald-500/5 px-4 py-3 text-left text-sm font-medium text-emerald-300/50 opacity-70"
-            title="Coming later"
-          >
-            Export overlay image
-          </button>
         </div>
       </section>
     </aside>

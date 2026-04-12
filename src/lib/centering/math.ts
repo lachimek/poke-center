@@ -16,6 +16,39 @@ export function formatRatioPair(shareA: number, _shareB: number): string {
   return `${lo} / ${hi}`;
 }
 
+/**
+ * Smaller of the two rounded complementary percents — the first number in "45 / 55".
+ */
+export function smallerMarginPercentFromShare(shareA: number): number {
+  const pctA = Math.round(shareA * 100);
+  const pctB = 100 - pctA;
+  return Math.min(pctA, pctB);
+}
+
+/** Horizontal and vertical "lo" percents for a card face (both axes must pass grade rules). */
+export function sideAxisLoPercents(result: SideResult): {
+  hLo: number;
+  vLo: number;
+} {
+  const hDenom = result.leftMargin + result.rightMargin;
+  const vDenom = result.topMargin + result.bottomMargin;
+  const leftPct = hDenom > 0 ? result.leftMargin / hDenom : 0.5;
+  const topPct = vDenom > 0 ? result.topMargin / vDenom : 0.5;
+  return {
+    hLo: smallerMarginPercentFromShare(leftPct),
+    vLo: smallerMarginPercentFromShare(topPct),
+  };
+}
+
+/** True if both horizontal and vertical centering meet min lo% (vs 50/50). */
+export function sideMeetsMinLoBothAxes(
+  result: SideResult,
+  minLo: number,
+): boolean {
+  const { hLo, vLo } = sideAxisLoPercents(result);
+  return hLo >= minLo && vLo >= minLo;
+}
+
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }

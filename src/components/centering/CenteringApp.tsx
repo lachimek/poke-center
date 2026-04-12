@@ -58,11 +58,6 @@ export function CenteringApp() {
     [back.guides],
   );
 
-  const onResetGuidesAll = () => {
-    setFront((s) => ({ ...s, guides: { ...DEFAULT_GUIDES } }));
-    setBack((s) => ({ ...s, guides: { ...DEFAULT_GUIDES } }));
-  };
-
   const onResetAll = () => {
     setViewerMagnify(null);
     setFront((s) => {
@@ -111,9 +106,6 @@ export function CenteringApp() {
             <h1 className="text-2xl font-semibold tracking-tight text-zinc-100">
               PokéCentering
             </h1>
-            <p className="mt-1 text-xs text-zinc-500">
-              Local only · logical space 630×880 · 63:88
-            </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -145,9 +137,8 @@ export function CenteringApp() {
         }
       >
         <CardWorkspace
-          title="Front"
+          title="FRONT"
           sideLabel="Side A"
-          helper="63:88 · 4 guides"
           side="front"
           viewerMagnify={viewerMagnify}
           onViewerMagnify={(factor) => setMagnifyForSide("front", factor)}
@@ -156,9 +147,8 @@ export function CenteringApp() {
           setState={setFront}
         />
         <CardWorkspace
-          title="Back"
+          title="BACK"
           sideLabel="Side B"
-          helper="Independent guides"
           side="back"
           viewerMagnify={viewerMagnify}
           onViewerMagnify={(factor) => setMagnifyForSide("back", factor)}
@@ -166,14 +156,7 @@ export function CenteringApp() {
           state={back}
           setState={setBack}
         />
-        <SummaryPanel
-          front={frontResult}
-          back={backResult}
-          frontGuides={front.guides}
-          backGuides={back.guides}
-          onResetGuidesAll={onResetGuidesAll}
-          onResetAll={onResetAll}
-        />
+        <SummaryPanel front={frontResult} back={backResult} />
       </div>
     </>
   );

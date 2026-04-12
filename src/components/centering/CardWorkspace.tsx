@@ -67,7 +67,6 @@ function SideMetrics({ result }: { result: SideResult }) {
 type CardWorkspaceProps = {
   title: string;
   sideLabel: string;
-  helper: string;
   side: CardSide;
   viewerMagnify: ViewerMagnify | null;
   onViewerMagnify: (factor: ViewerMagnifyFactor | null) => void;
@@ -79,7 +78,6 @@ type CardWorkspaceProps = {
 export function CardWorkspace({
   title,
   sideLabel,
-  helper,
   side,
   viewerMagnify,
   onViewerMagnify,
@@ -270,13 +268,12 @@ export function CardWorkspace({
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">
-            {sideLabel}
-          </div>
-          <h2 className="text-lg font-medium text-zinc-100">{title}</h2>
+          <h2 className="text-lg font-medium text-zinc-100 tracking-[2px]">
+            {title}
+          </h2>
         </div>
-        <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 px-3 py-1.5 text-xs text-zinc-400">
-          {helper}
+        <div className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">
+          {sideLabel}
         </div>
       </div>
 
