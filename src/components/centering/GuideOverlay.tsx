@@ -106,6 +106,8 @@ export function GuideOverlay({
     onPointerCancel: endDrag,
   });
 
+  const lineGlow = `0 0 12px ${ACCENT_DIM}`;
+
   return (
     <div className="pointer-events-none absolute inset-0 z-10">
       {VERTICAL.map(({ key: guideKey, label }) => {
@@ -122,14 +124,14 @@ export function GuideOverlay({
             {...h}
           >
             <div
-              className="absolute top-0 bottom-0 left-1/2 w-px -translate-x-1/2"
+              className="absolute top-0 bottom-0 left-1/2 w-[2px] -translate-x-1/2 rounded-full"
               style={{
                 backgroundColor: ACCENT,
-                boxShadow: `0 0 0 1px ${ACCENT_DIM}`,
+                boxShadow: `${lineGlow}, 0 0 0 1px ${ACCENT_DIM}`,
               }}
             />
             <span
-              className="pointer-events-none absolute left-1/2 top-1 -translate-x-1/2 font-mono text-[9px] font-medium tracking-tight"
+              className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 rounded-lg border border-white/10 bg-black/45 px-2 py-0.5 text-[10px] font-medium backdrop-blur-sm"
               style={{ color: ACCENT }}
             >
               {label}
@@ -152,14 +154,14 @@ export function GuideOverlay({
             {...h}
           >
             <div
-              className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2"
+              className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full"
               style={{
                 backgroundColor: ACCENT,
-                boxShadow: `0 0 0 1px ${ACCENT_DIM}`,
+                boxShadow: `${lineGlow}, 0 0 0 1px ${ACCENT_DIM}`,
               }}
             />
             <span
-              className="pointer-events-none absolute left-1 top-1/2 -translate-y-1/2 font-mono text-[9px] font-medium tracking-tight"
+              className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 rounded-lg border border-white/10 bg-black/45 px-2 py-0.5 text-[10px] font-medium backdrop-blur-sm"
               style={{ color: ACCENT }}
             >
               {label}
@@ -168,8 +170,8 @@ export function GuideOverlay({
         );
       })}
 
-      <div className="pointer-events-none absolute bottom-1 right-1 rounded bg-black/55 px-1.5 py-0.5 font-mono text-[9px] text-zinc-400">
-        {CARD_LOGICAL_WIDTH}x{CARD_LOGICAL_HEIGHT}
+      <div className="pointer-events-none absolute bottom-2 right-2 rounded-lg border border-zinc-800/80 bg-black/50 px-2 py-1 text-[10px] text-zinc-500">
+        {CARD_LOGICAL_WIDTH}×{CARD_LOGICAL_HEIGHT}
       </div>
     </div>
   );

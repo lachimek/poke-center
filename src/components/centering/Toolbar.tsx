@@ -17,10 +17,13 @@ const VIEWER_MAGNIFY_BUTTONS: {
   factor: ViewerMagnifyFactor | null;
   label: string;
 }[] = [
-  { factor: null, label: "1x" },
-  { factor: 2, label: "2x" },
-  { factor: 3, label: "3x" },
+  { factor: null, label: "1×" },
+  { factor: 2, label: "2×" },
+  { factor: 3, label: "3×" },
 ];
+
+const btnBase =
+  "rounded-2xl border px-3 py-2 text-xs transition disabled:pointer-events-none disabled:opacity-40";
 
 type ToolbarProps = {
   hasImage: boolean;
@@ -31,7 +34,6 @@ type ToolbarProps = {
   onResetGuides: () => void;
   guideColor: string;
   onGuideColorChange: (hex: string) => void;
-  /** null = equal width; 2 | 3 = this column is enlarged (only one side app-wide). */
   viewerMagnifyActive: ViewerMagnifyFactor | null;
   onViewerMagnify: (factor: ViewerMagnifyFactor | null) => void;
 };
@@ -63,16 +65,16 @@ export function Toolbar({
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="mb-4 flex flex-col gap-3">
+      <div className="flex flex-wrap gap-2">
         <button
           type="button"
           onClick={onReplaceImage}
-          className={
+          className={`${btnBase} ${
             hasImage
-              ? "rounded-lg border border-zinc-600 bg-zinc-800/80 px-3 py-1.5 font-mono text-xs text-zinc-200 transition hover:border-amber-600/50 hover:bg-zinc-800"
-              : "rounded-lg border border-amber-600/50 bg-amber-500/10 px-3 py-1.5 font-mono text-xs font-medium text-amber-200/95 transition hover:border-amber-500/70 hover:bg-amber-500/15"
-          }
+              ? "border-zinc-800 bg-zinc-950/70 text-zinc-300 hover:bg-zinc-900/80"
+              : "border-emerald-500/25 bg-emerald-500/10 font-medium text-emerald-300 hover:border-emerald-500/40 hover:bg-emerald-500/15"
+          }`}
         >
           {hasImage ? "Replace image" : "Upload image"}
         </button>
@@ -80,30 +82,31 @@ export function Toolbar({
           type="button"
           disabled={!hasImage}
           onClick={onResetView}
-          className="rounded-lg border border-zinc-600 bg-zinc-800/80 px-2.5 py-1.5 font-mono text-xs text-zinc-200 transition hover:bg-zinc-800 disabled:opacity-40"
+          className={`${btnBase} border-zinc-800 bg-zinc-950/70 text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-300`}
         >
           Reset view
         </button>
         <button
           type="button"
           onClick={onResetGuides}
-          className="rounded-lg border border-zinc-600 bg-zinc-800/80 px-2.5 py-1.5 font-mono text-xs text-zinc-200 transition hover:bg-zinc-800"
+          className={`${btnBase} border-zinc-800 bg-zinc-950/70 text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-300`}
         >
           Reset guides
         </button>
-        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-700/80 bg-zinc-900/60 px-2 py-1 font-mono text-[10px] text-zinc-400">
+        <label className="flex cursor-pointer items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-950/70 px-3 py-2 text-xs text-zinc-500">
           <span className="shrink-0">Guide</span>
           <input
             type="color"
             value={guideColor}
             onChange={(e) => onGuideColorChange(e.target.value)}
-            className="h-7 w-10 cursor-pointer rounded border border-zinc-600 bg-zinc-800 p-0"
+            className="h-7 w-10 cursor-pointer rounded-lg border border-zinc-700 bg-zinc-900 p-0.5"
             title="Guide line color"
           />
         </label>
-
-        <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-zinc-700/80 bg-zinc-900/60 px-2 py-1.5 font-mono text-[10px] text-zinc-400">
-          <span className="mr-1 shrink-0 text-zinc-500">Viewer</span>
+        <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-zinc-800 bg-zinc-950/70 px-2 py-1.5">
+          <span className="px-1 text-[10px] uppercase tracking-wider text-zinc-500">
+            Viewer
+          </span>
           {VIEWER_MAGNIFY_BUTTONS.map(({ factor, label }) => {
             const active =
               factor === null
@@ -119,10 +122,10 @@ export function Toolbar({
                     ? "Equal column width"
                     : `Widen this side (${factor}× vs other)`
                 }
-                className={`rounded-md border px-2 py-1 tabular-nums transition ${
+                className={`rounded-xl border px-2.5 py-1.5 text-xs tabular-nums transition ${
                   active
-                    ? "border-amber-500/60 bg-amber-500/15 text-amber-100"
-                    : "border-zinc-600 bg-zinc-800/60 text-zinc-300 hover:border-zinc-500"
+                    ? "border-emerald-500/30 bg-emerald-500/10 font-medium text-emerald-300"
+                    : "border-zinc-800 bg-zinc-900/60 text-zinc-400 hover:border-zinc-700 hover:text-zinc-300"
                 }`}
               >
                 {label}
@@ -133,45 +136,46 @@ export function Toolbar({
       </div>
 
       <div
-        className={`flex flex-col gap-3 rounded-xl border border-zinc-800/80 bg-zinc-950/50 p-3 ${!hasImage ? "pointer-events-none opacity-40" : ""}`}
+        className={`rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4 ${!hasImage ? "pointer-events-none opacity-45" : ""}`}
       >
-        <label className="flex flex-col gap-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-500">
-          <span className="flex items-center justify-between gap-2">
-            Rotation
-            <span className="tabular-nums text-zinc-300">
-              {rotationShown.toFixed(1)}°
+        <div className="flex flex-col gap-4">
+          <label className="flex flex-col gap-2">
+            <span className="flex items-center justify-between text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+              Rotation
+              <span className="tabular-nums text-sm font-medium normal-case tracking-normal text-zinc-300">
+                {rotationShown.toFixed(1)}°
+              </span>
             </span>
-          </span>
-          <input
-            type="range"
-            min={0}
-            max={359.9}
-            step={ROTATION_SLIDER_STEP}
-            value={Math.min(359.9, rotationShown)}
-            disabled={!hasImage}
-            onChange={(e) => setRotation(Number(e.target.value))}
-            className="h-1.5 w-full cursor-pointer accent-amber-500 disabled:cursor-not-allowed"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-500">
-          <span className="flex items-center justify-between gap-2">
-            Zoom
-            <span className="tabular-nums text-zinc-300">
-              {transform.scale.toFixed(3)}×
+            <input
+              type="range"
+              min={0}
+              max={359.9}
+              step={ROTATION_SLIDER_STEP}
+              value={Math.min(359.9, rotationShown)}
+              disabled={!hasImage}
+              onChange={(e) => setRotation(Number(e.target.value))}
+              className="h-2 w-full cursor-pointer accent-emerald-500 disabled:cursor-not-allowed"
+            />
+          </label>
+          <label className="flex flex-col gap-2">
+            <span className="flex items-center justify-between text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+              Zoom
+              <span className="tabular-nums text-sm font-medium normal-case tracking-normal text-zinc-300">
+                {transform.scale.toFixed(3)}×
+              </span>
             </span>
-          </span>
-          <input
-            type="range"
-            min={ZOOM_MIN}
-            max={ZOOM_MAX}
-            step={ZOOM_SLIDER_STEP}
-            value={Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, transform.scale))}
-            disabled={!hasImage}
-            onChange={(e) => setScale(Number(e.target.value))}
-            className="h-1.5 w-full cursor-pointer accent-amber-500 disabled:cursor-not-allowed"
-          />
-        </label>
+            <input
+              type="range"
+              min={ZOOM_MIN}
+              max={ZOOM_MAX}
+              step={ZOOM_SLIDER_STEP}
+              value={Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, transform.scale))}
+              disabled={!hasImage}
+              onChange={(e) => setScale(Number(e.target.value))}
+              className="h-2 w-full cursor-pointer accent-emerald-500 disabled:cursor-not-allowed"
+            />
+          </label>
+        </div>
       </div>
     </div>
   );

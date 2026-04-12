@@ -24,7 +24,6 @@ type CardViewerProps = {
   guides: GuideLines;
   onGuidesChange: (next: GuideLines) => void;
   guideColor: string;
-  /** Increment from parent to re-run “fit to frame” (reset view). */
   fitRequestId: number;
   onUpload: (file: File) => void;
 };
@@ -63,7 +62,6 @@ export function CardViewer({
   const transformRef = useRef(transform);
   transformRef.current = transform;
 
-  /** Previous viewer width (px); used to scale pan/zoom when the frame resizes (e.g. column magnify). */
   const prevFrameWRef = useRef<number | null>(null);
 
   useLayoutEffect(() => {
@@ -80,7 +78,6 @@ export function CardViewer({
     return () => ro.disconnect();
   }, []);
 
-  /** Keep image aligned with guides when frame width changes: same ratio as logical displayScale. */
   useLayoutEffect(() => {
     const w = framePx.w;
     const prev = prevFrameWRef.current;
@@ -203,91 +200,103 @@ export function CardViewer({
   const dispH = nh * scale;
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full overflow-hidden rounded-2xl border border-zinc-700/80 bg-zinc-950 shadow-inner"
-      style={{ aspectRatio: `${CARD_LOGICAL_WIDTH} / ${CARD_LOGICAL_HEIGHT}` }}
-      onWheel={onWheel}
-    >
-      <div
-        className="absolute inset-0 bg-[linear-gradient(180deg,#0a0a0c_0%,#050506_100%)]"
-        aria-hidden
-      />
-
-      {!imageSrc && (
-        <div className="absolute inset-0 z-[15] flex flex-col items-center justify-center gap-4 px-6 text-center">
-          <input
-            ref={emptyFileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onUpload(f);
-              e.target.value = "";
-            }}
-          />
-          <p className="font-mono text-xs tracking-wide text-zinc-500">
-            No image loaded
-          </p>
-          <p className="max-w-[260px] text-xs leading-relaxed text-zinc-600">
-            Upload a straight photo. Align the outer card to the frame, then
-            place two guides per edge (L1/L2, R1/R2, T1/T2, B1/B2) — margins use
-            the mean of each pair, not one inner box.
-          </p>
-          <button
-            type="button"
-            onClick={() => emptyFileRef.current?.click()}
-            className="rounded-xl border border-amber-600/50 bg-amber-500/10 px-5 py-2.5 font-mono text-sm font-medium text-amber-200/95 transition hover:border-amber-500/70 hover:bg-amber-500/15"
-          >
-            Upload image
-          </button>
-        </div>
-      )}
-
-      {imageSrc && (
-        <div
-          className="absolute inset-0 z-[1] cursor-grab touch-none active:cursor-grabbing"
-          onPointerDown={panStart}
-          onPointerMove={panMove}
-          onPointerUp={panEnd}
-          onPointerCancel={panEnd}
-        >
+    <div className="relative flex min-h-[min(520px,62vh)] w-full items-center justify-center rounded-[28px] border border-zinc-800 bg-[radial-gradient(circle_at_top,rgba(39,39,42,0.5),rgba(9,9,11,0.95))] p-4 sm:p-6">
+      <div className="relative w-full max-w-[472px]">
+        <div className="relative rounded-[32px] border border-zinc-700 bg-zinc-950 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
           <div
-            className="pointer-events-none absolute left-1/2 top-1/2"
+            className="pointer-events-none absolute inset-3 rounded-[26px] border border-zinc-800 bg-gradient-to-b from-zinc-900/90 to-zinc-950"
+            aria-hidden
+          />
+
+          <div
+            ref={containerRef}
+            className="relative z-[1] w-full overflow-hidden rounded-[22px] border border-zinc-800 bg-zinc-950 shadow-inner"
             style={{
-              width: natural ? dispW : 0,
-              height: natural ? dispH : 0,
-              marginLeft: natural ? -dispW / 2 + offsetX : 0,
-              marginTop: natural ? -dispH / 2 + offsetY : 0,
-              transform: `rotate(${rotation}deg)`,
-              transformOrigin: "center center",
-              opacity: natural ? 1 : 0,
+              aspectRatio: `${CARD_LOGICAL_WIDTH} / ${CARD_LOGICAL_HEIGHT}`,
             }}
+            onWheel={onWheel}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element -- local object URLs only */}
-            {/* biome-ignore lint/performance/noImgElement: Next/Image cannot optimize blob: object URLs */}
-            <img
-              src={imageSrc}
-              alt=""
-              width={nw || undefined}
-              height={nh || undefined}
-              draggable={false}
-              onLoad={onImageLoad}
-              className="block h-full w-full max-h-none max-w-none select-none object-fill"
+            <div
+              className="absolute inset-0 bg-[linear-gradient(180deg,#0a0a0c_0%,#050506_100%)]"
+              aria-hidden
+            />
+
+            {!imageSrc && (
+              <div className="absolute inset-0 z-[15] flex flex-col items-center justify-center gap-4 px-6 text-center">
+                <input
+                  ref={emptyFileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) onUpload(f);
+                    e.target.value = "";
+                  }}
+                />
+                <p className="text-xs tracking-wide text-zinc-500">
+                  No image loaded
+                </p>
+                <p className="max-w-[260px] text-xs leading-relaxed text-zinc-600">
+                  Upload a straight photo. Align the outer card to the frame,
+                  then drag guides (L1/L2, R1/R2, T1/T2, B1/B2).
+                </p>
+                <button
+                  type="button"
+                  onClick={() => emptyFileRef.current?.click()}
+                  className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 px-5 py-2.5 text-sm font-medium text-emerald-300 transition hover:border-emerald-500/40 hover:bg-emerald-500/15"
+                >
+                  Upload image
+                </button>
+              </div>
+            )}
+
+            {imageSrc && (
+              <div
+                className="absolute inset-0 z-[1] cursor-grab touch-none active:cursor-grabbing"
+                onPointerDown={panStart}
+                onPointerMove={panMove}
+                onPointerUp={panEnd}
+                onPointerCancel={panEnd}
+              >
+                <div
+                  className="pointer-events-none absolute left-1/2 top-1/2"
+                  style={{
+                    width: natural ? dispW : 0,
+                    height: natural ? dispH : 0,
+                    marginLeft: natural ? -dispW / 2 + offsetX : 0,
+                    marginTop: natural ? -dispH / 2 + offsetY : 0,
+                    transform: `rotate(${rotation}deg)`,
+                    transformOrigin: "center center",
+                    opacity: natural ? 1 : 0,
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- local object URLs only */}
+                  {/* biome-ignore lint/performance/noImgElement: Next/Image cannot optimize blob: object URLs */}
+                  <img
+                    src={imageSrc}
+                    alt=""
+                    width={nw || undefined}
+                    height={nh || undefined}
+                    draggable={false}
+                    onLoad={onImageLoad}
+                    className="block h-full w-full max-h-none max-w-none select-none object-fill"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="pointer-events-none absolute inset-0 z-[5] rounded-[22px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]" />
+
+            <GuideOverlay
+              displayScale={displayScale}
+              guides={guides}
+              onGuidesChange={onGuidesChange}
+              guideColor={guideColor}
             />
           </div>
         </div>
-      )}
-
-      <div className="pointer-events-none absolute inset-0 z-[5] rounded-2xl shadow-[inset_0_0_0_2px_rgba(255,255,255,0.06)]" />
-
-      <GuideOverlay
-        displayScale={displayScale}
-        guides={guides}
-        onGuidesChange={onGuidesChange}
-        guideColor={guideColor}
-      />
+      </div>
     </div>
   );
 }
