@@ -18,17 +18,13 @@ type GuideOverlayProps = {
 const LINE_HIT_PX = 12;
 
 const VERTICAL: { key: GuideKey; label: string }[] = [
-  { key: "left1", label: "L1" },
-  { key: "left2", label: "L2" },
-  { key: "right1", label: "R1" },
-  { key: "right2", label: "R2" },
+  { key: "left", label: "L" },
+  { key: "right", label: "R" },
 ];
 
 const HORIZONTAL: { key: GuideKey; label: string }[] = [
-  { key: "top1", label: "T1" },
-  { key: "top2", label: "T2" },
-  { key: "bottom1", label: "B1" },
-  { key: "bottom2", label: "B2" },
+  { key: "top", label: "T" },
+  { key: "bottom", label: "B" },
 ];
 
 export function GuideOverlay({

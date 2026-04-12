@@ -14,7 +14,7 @@ type SummaryPanelProps = {
 };
 
 function fmtGuides(g: GuideLines): string {
-  return `L ${g.left1}/${g.left2} · R ${g.right1}/${g.right2} · T ${g.top1}/${g.top2} · B ${g.bottom1}/${g.bottom2}`;
+  return `L ${g.left} · R ${g.right} · T ${g.top} · B ${g.bottom}`;
 }
 
 export function SummaryPanel({
@@ -119,9 +119,9 @@ export function SummaryPanel({
         </div>
         <div className="space-y-3 text-sm text-zinc-400">
           <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4 leading-relaxed">
-            Use a straight photo with soft light. Align the card to the fixed
-            frame, then drag the guides. Each edge uses two marks (e.g. L1/L2);
-            ratios use the mean of each pair.
+            Use perspective correction for an angled photo, then drag one guide
+            per side (L/R/T/B) to match the inner border; the frame is the
+            opposite edge.
           </div>
           <div className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4 leading-relaxed">
             Front and back are independent. This tool is for pre-screening only

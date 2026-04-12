@@ -1,17 +1,6 @@
 "use client";
 
-import {
-  ROTATION_SLIDER_STEP,
-  ZOOM_MAX,
-  ZOOM_MIN,
-  ZOOM_SLIDER_STEP,
-} from "@/lib/centering/constants";
-import type { ViewerMagnifyFactor, ViewTransform } from "@/lib/centering/types";
-
-function normalizeRotationDeg(deg: number): number {
-  const r = deg % 360;
-  return r < 0 ? r + 360 : r;
-}
+import type { ViewerMagnifyFactor } from "@/lib/centering/types";
 
 const VIEWER_MAGNIFY_BUTTONS: {
   factor: ViewerMagnifyFactor | null;
@@ -28,8 +17,6 @@ const btnBase =
 type ToolbarProps = {
   hasImage: boolean;
   onReplaceImage: () => void;
-  transform: ViewTransform;
-  onTransformChange: (t: ViewTransform) => void;
   onResetView: () => void;
   onResetGuides: () => void;
   guideColor: string;
@@ -39,18 +26,14 @@ type ToolbarProps = {
   perspectiveMode: boolean;
   perspectiveApplyEnabled: boolean;
   perspectiveHint: string | null;
-  isRectified: boolean;
   onOpenPerspective: () => void;
   onPerspectiveApply: () => void;
   onPerspectiveCancel: () => void;
-  onResetRectification: () => void;
 };
 
 export function Toolbar({
   hasImage,
   onReplaceImage,
-  transform,
-  onTransformChange,
   onResetView,
   onResetGuides,
   guideColor,
@@ -60,26 +43,10 @@ export function Toolbar({
   perspectiveMode,
   perspectiveApplyEnabled,
   perspectiveHint,
-  isRectified,
   onOpenPerspective,
   onPerspectiveApply,
   onPerspectiveCancel,
-  onResetRectification,
 }: ToolbarProps) {
-  const rotationShown = normalizeRotationDeg(transform.rotation);
-
-  const setRotation = (rotation: number) => {
-    onTransformChange({
-      ...transform,
-      rotation: normalizeRotationDeg(rotation),
-    });
-  };
-
-  const setScale = (scale: number) => {
-    const s = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, scale));
-    onTransformChange({ ...transform, scale: s });
-  };
-
   return (
     <div className="mb-4 flex flex-col gap-3">
       <div className="flex flex-wrap gap-2">
@@ -120,15 +87,6 @@ export function Toolbar({
               Cancel
             </button>
           </>
-        ) : null}
-        {isRectified && !perspectiveMode ? (
-          <button
-            type="button"
-            onClick={onResetRectification}
-            className={`${btnBase} border-amber-500/25 bg-amber-500/10 text-amber-200/90 hover:bg-amber-500/15`}
-          >
-            Reset rectification
-          </button>
         ) : null}
         <button
           type="button"
@@ -196,51 +154,6 @@ export function Toolbar({
       {perspectiveMode && perspectiveHint ? (
         <p className="text-xs text-amber-200/80">{perspectiveHint}</p>
       ) : null}
-
-      <div
-        className={`rounded-2xl border border-zinc-800 bg-zinc-950/60 p-4 ${
-          !hasImage || perspectiveMode ? "pointer-events-none opacity-45" : ""
-        }`}
-      >
-        <div className="flex flex-col gap-4">
-          <label className="flex flex-col gap-2">
-            <span className="flex items-center justify-between text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-              Rotation
-              <span className="tabular-nums text-sm font-medium normal-case tracking-normal text-zinc-300">
-                {rotationShown.toFixed(1)}°
-              </span>
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={359.9}
-              step={ROTATION_SLIDER_STEP}
-              value={Math.min(359.9, rotationShown)}
-              disabled={!hasImage}
-              onChange={(e) => setRotation(Number(e.target.value))}
-              className="h-2 w-full cursor-pointer accent-emerald-500 disabled:cursor-not-allowed"
-            />
-          </label>
-          <label className="flex flex-col gap-2">
-            <span className="flex items-center justify-between text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-              Zoom
-              <span className="tabular-nums text-sm font-medium normal-case tracking-normal text-zinc-300">
-                {transform.scale.toFixed(3)}×
-              </span>
-            </span>
-            <input
-              type="range"
-              min={ZOOM_MIN}
-              max={ZOOM_MAX}
-              step={ZOOM_SLIDER_STEP}
-              value={Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, transform.scale))}
-              disabled={!hasImage}
-              onChange={(e) => setScale(Number(e.target.value))}
-              className="h-2 w-full cursor-pointer accent-emerald-500 disabled:cursor-not-allowed"
-            />
-          </label>
-        </div>
-      </div>
     </div>
   );
 }

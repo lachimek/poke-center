@@ -1,28 +1,20 @@
 /**
- * Eight guides in logical card space — two per edge:
- * - Left margin: vertical lines at left1, left2 (x)
- * - Right margin: vertical lines at right1, right2 (x)
- * - Top margin: horizontal lines at top1, top2 (y)
- * - Bottom margin: horizontal lines at bottom1, bottom2 (y)
- *
- * Ratios use the mean of each pair (not a shared inner bounding box).
+ * Four guides in logical card space — one per edge (opposite edge is the view frame).
+ * - `left` / `right`: vertical lines at x (from logical left)
+ * - `top` / `bottom`: horizontal lines at y (from logical top)
  */
 export type GuideLines = {
-  left1: number;
-  left2: number;
-  right1: number;
-  right2: number;
-  top1: number;
-  top2: number;
-  bottom1: number;
-  bottom2: number;
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
 };
 
 export type GuideKey = keyof GuideLines;
 
+/** Fit-to-frame scale (CSS px per image px) and pan in screen pixels. */
 export type ViewTransform = {
   scale: number;
-  rotation: number;
   offsetX: number;
   offsetY: number;
 };
@@ -52,13 +44,13 @@ export type CardSideState = {
 };
 
 export type SideResult = {
-  /** Mean(left1, left2) — used for horizontal ratio. */
+  /** Same as inner-left guide x — margin from logical left. */
   leftMargin: number;
-  /** W - mean(right1, right2). */
+  /** Distance from inner-right guide to logical right edge. */
   rightMargin: number;
-  /** Mean(top1, top2). */
+  /** Same as inner-top guide y — margin from logical top. */
   topMargin: number;
-  /** H - mean(bottom1, bottom2). */
+  /** Distance from inner-bottom guide to logical bottom edge. */
   bottomMargin: number;
   horizontalDisplay: string;
   verticalDisplay: string;

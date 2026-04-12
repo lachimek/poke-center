@@ -21,7 +21,7 @@ function clamp(v: number, lo: number, hi: number): number {
 }
 
 /**
- * Pairs stay ordered (a ≤ b); left pair stays left of right pair; top pair above bottom pair.
+ * Keeps left < right and top < bottom with at least `gap`, clamped to the logical card.
  */
 export function clampGuides(
   guides: GuideLines,
@@ -29,74 +29,53 @@ export function clampGuides(
   h = CARD_LOGICAL_HEIGHT,
   gap = GUIDE_MIN_GAP,
 ): GuideLines {
-  const cx = (v: number) => clamp(v, 0, w);
-  const cy = (v: number) => clamp(v, 0, h);
-
-  let left1 = cx(guides.left1);
-  let left2 = cx(guides.left2);
-  let right1 = cx(guides.right1);
-  let right2 = cx(guides.right2);
-  if (left1 > left2) {
-    const t = left1;
-    left1 = left2;
-    left2 = t;
+  let left = clamp(guides.left, 0, w);
+  let right = clamp(guides.right, 0, w);
+  if (right - left < gap) {
+    const mid = (left + right) * 0.5;
+    left = mid - gap * 0.5;
+    right = mid + gap * 0.5;
   }
-  if (right1 > right2) {
-    const t = right1;
-    right1 = right2;
-    right2 = t;
+  left = clamp(left, 0, w - gap);
+  right = clamp(right, gap, w);
+  if (right < left + gap) {
+    right = left + gap;
   }
-
-  let top1 = cy(guides.top1);
-  let top2 = cy(guides.top2);
-  let bottom1 = cy(guides.bottom1);
-  let bottom2 = cy(guides.bottom2);
-  if (top1 > top2) {
-    const t = top1;
-    top1 = top2;
-    top2 = t;
+  if (right > w) {
+    right = w;
+    left = w - gap;
   }
-  if (bottom1 > bottom2) {
-    const t = bottom1;
-    bottom1 = bottom2;
-    bottom2 = t;
+  if (left < 0) {
+    left = 0;
+    right = gap;
   }
 
-  if (left2 > right1 - gap) {
-    const m = (left2 + right1) / 2;
-    left2 = cx(m - gap / 2);
-    right1 = cx(m + gap / 2);
+  let top = clamp(guides.top, 0, h);
+  let bottom = clamp(guides.bottom, 0, h);
+  if (bottom - top < gap) {
+    const mid = (top + bottom) * 0.5;
+    top = mid - gap * 0.5;
+    bottom = mid + gap * 0.5;
   }
-  left1 = cx(Math.min(left1, left2 - gap));
-  right2 = cx(Math.max(right2, right1 + gap));
-
-  if (top2 > bottom1 - gap) {
-    const m = (top2 + bottom1) / 2;
-    top2 = cy(m - gap / 2);
-    bottom1 = cy(m + gap / 2);
+  top = clamp(top, 0, h - gap);
+  bottom = clamp(bottom, gap, h);
+  if (bottom < top + gap) {
+    bottom = top + gap;
   }
-  top1 = cy(Math.min(top1, top2 - gap));
-  bottom2 = cy(Math.max(bottom2, bottom1 + gap));
+  if (bottom > h) {
+    bottom = h;
+    top = h - gap;
+  }
+  if (top < 0) {
+    top = 0;
+    bottom = gap;
+  }
 
-  return {
-    left1: cx(left1),
-    left2: cx(left2),
-    right1: cx(right1),
-    right2: cx(right2),
-    top1: cy(top1),
-    top2: cy(top2),
-    bottom1: cy(bottom1),
-    bottom2: cy(bottom2),
-  };
-}
-
-function mean(a: number, b: number): number {
-  return (a + b) / 2;
+  return { left, right, top, bottom };
 }
 
 /**
- * Effective inner reference per edge = mean of that edge’s two guides.
- * Horizontal ratio: leftRep vs (W - rightRep); vertical: topRep vs (H - bottomRep).
+ * Margins: inner guides vs opposite frame edges (logical width/height).
  */
 export function computeSideResult(
   guides: GuideLines,
@@ -104,15 +83,11 @@ export function computeSideResult(
   h = CARD_LOGICAL_HEIGHT,
 ): SideResult {
   const g = clampGuides(guides, w, h);
-  const leftRep = mean(g.left1, g.left2);
-  const rightRep = mean(g.right1, g.right2);
-  const topRep = mean(g.top1, g.top2);
-  const bottomRep = mean(g.bottom1, g.bottom2);
 
-  const leftMargin = leftRep;
-  const rightMargin = w - rightRep;
-  const topMargin = topRep;
-  const bottomMargin = h - bottomRep;
+  const leftMargin = g.left;
+  const rightMargin = w - g.right;
+  const topMargin = g.top;
+  const bottomMargin = h - g.bottom;
 
   const hDenom = leftMargin + rightMargin;
   const vDenom = topMargin + bottomMargin;

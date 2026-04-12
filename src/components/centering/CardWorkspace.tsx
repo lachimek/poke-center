@@ -110,7 +110,8 @@ export function CardWorkspace({
   const onUpload = useCallback(
     (file: File) => {
       const url = URL.createObjectURL(file);
-      setPerspectiveMode(false);
+      setPerspectiveSession((n) => n + 1);
+      setPerspectiveMode(true);
       setPerspectiveDraft(null);
       setPerspectiveValid(false);
       setPerspectiveHint(null);
@@ -232,28 +233,6 @@ export function CardWorkspace({
     };
   }, [perspectiveDraft, perspectiveValid, setState, state.rawImageSrc]);
 
-  const onResetRectification = useCallback(() => {
-    setState((s) => {
-      const rectified = s.imageSrc;
-      if (!s.rawImageSrc || !rectified || rectified === s.rawImageSrc) {
-        return s;
-      }
-      URL.revokeObjectURL(rectified);
-      return {
-        ...s,
-        imageSrc: s.rawImageSrc,
-        transform: { ...DEFAULT_VIEW_TRANSFORM },
-        guides: { ...DEFAULT_GUIDES },
-      };
-    });
-    setFitRequestId((n) => n + 1);
-  }, [setState]);
-
-  const isRectified =
-    !!state.rawImageSrc &&
-    !!state.imageSrc &&
-    state.imageSrc !== state.rawImageSrc;
-
   return (
     <section className="flex min-w-0 flex-col rounded-3xl border border-zinc-800 bg-zinc-900/70 p-5 shadow-2xl shadow-black/20">
       <input
@@ -283,8 +262,6 @@ export function CardWorkspace({
       <Toolbar
         hasImage={!!state.imageSrc}
         onReplaceImage={() => replaceInputRef.current?.click()}
-        transform={state.transform}
-        onTransformChange={onTransformChange}
         onResetView={onResetView}
         onResetGuides={onResetGuides}
         guideColor={state.guideColor}
@@ -294,11 +271,9 @@ export function CardWorkspace({
         perspectiveMode={perspectiveMode}
         perspectiveApplyEnabled={perspectiveValid && !!perspectiveDraft}
         perspectiveHint={perspectiveHint}
-        isRectified={isRectified}
         onOpenPerspective={onOpenPerspective}
         onPerspectiveApply={onPerspectiveApply}
         onPerspectiveCancel={onPerspectiveCancel}
-        onResetRectification={onResetRectification}
       />
 
       {perspectiveMode && state.rawImageSrc ? (

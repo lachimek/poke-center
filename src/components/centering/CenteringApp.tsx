@@ -147,7 +147,7 @@ export function CenteringApp() {
         <CardWorkspace
           title="Front"
           sideLabel="Side A"
-          helper="63:88 locked · 8 guides"
+          helper="63:88 · 4 guides"
           side="front"
           viewerMagnify={viewerMagnify}
           onViewerMagnify={(factor) => setMagnifyForSide("front", factor)}

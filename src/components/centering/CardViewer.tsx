@@ -10,9 +10,6 @@ import {
 import {
   CARD_LOGICAL_HEIGHT,
   CARD_LOGICAL_WIDTH,
-  WHEEL_ZOOM_STEP,
-  ZOOM_MAX,
-  ZOOM_MIN,
 } from "@/lib/centering/constants";
 import type { GuideLines, ViewTransform } from "@/lib/centering/types";
 import { GuideOverlay } from "./GuideOverlay";
@@ -117,7 +114,6 @@ export function CardViewer({
     const s = fitScale(fw, fh, natural.w, natural.h);
     onTransformChange({
       scale: s,
-      rotation: 0,
       offsetX: 0,
       offsetY: 0,
     });
@@ -142,23 +138,10 @@ export function CardViewer({
       const s = fitScale(fw, fh, w, h);
       onTransformChange({
         scale: s,
-        rotation: 0,
         offsetX: 0,
         offsetY: 0,
       });
     });
-  };
-
-  const onWheel = (e: React.WheelEvent) => {
-    if (!imageSrc) return;
-    e.preventDefault();
-    const dir = e.deltaY > 0 ? -1 : 1;
-    const factor = dir > 0 ? WHEEL_ZOOM_STEP : 1 / WHEEL_ZOOM_STEP;
-    const next = Math.min(
-      ZOOM_MAX,
-      Math.max(ZOOM_MIN, transform.scale * factor),
-    );
-    onTransformChange({ ...transform, scale: next });
   };
 
   const panStart = (e: React.PointerEvent) => {
@@ -193,7 +176,7 @@ export function CardViewer({
     panRef.current = null;
   };
 
-  const { scale, rotation, offsetX, offsetY } = transform;
+  const { scale, offsetX, offsetY } = transform;
   const nw = natural?.w ?? 0;
   const nh = natural?.h ?? 0;
   const dispW = nw * scale;
@@ -214,7 +197,6 @@ export function CardViewer({
             style={{
               aspectRatio: `${CARD_LOGICAL_WIDTH} / ${CARD_LOGICAL_HEIGHT}`,
             }}
-            onWheel={onWheel}
           >
             <div
               className="absolute inset-0 bg-[linear-gradient(180deg,#0a0a0c_0%,#050506_100%)]"
@@ -238,8 +220,8 @@ export function CardViewer({
                   No image loaded
                 </p>
                 <p className="max-w-[260px] text-xs leading-relaxed text-zinc-600">
-                  Upload a straight photo. Align the outer card to the frame,
-                  then drag guides (L1/L2, R1/R2, T1/T2, B1/B2).
+                  Upload a photo — perspective correction opens next. After
+                  that, drag the four guides (L, R, T, B) on the rectified card.
                 </p>
                 <button
                   type="button"
@@ -266,8 +248,6 @@ export function CardViewer({
                     height: natural ? dispH : 0,
                     marginLeft: natural ? -dispW / 2 + offsetX : 0,
                     marginTop: natural ? -dispH / 2 + offsetY : 0,
-                    transform: `rotate(${rotation}deg)`,
-                    transformOrigin: "center center",
                     opacity: natural ? 1 : 0,
                   }}
                 >
@@ -288,12 +268,14 @@ export function CardViewer({
 
             <div className="pointer-events-none absolute inset-0 z-[5] rounded-[22px] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)]" />
 
-            <GuideOverlay
-              displayScale={displayScale}
-              guides={guides}
-              onGuidesChange={onGuidesChange}
-              guideColor={guideColor}
-            />
+            {imageSrc ? (
+              <GuideOverlay
+                displayScale={displayScale}
+                guides={guides}
+                onGuidesChange={onGuidesChange}
+                guideColor={guideColor}
+              />
+            ) : null}
           </div>
         </div>
       </div>
