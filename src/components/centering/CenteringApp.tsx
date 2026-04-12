@@ -2,6 +2,8 @@
 
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { renderCenteringExportPng } from "@/lib/centering/exportCompositeImage";
+import { summarizeCenteringByCompany } from "@/lib/centering/gradeEstimate";
 import { computeSideResult } from "@/lib/centering/math";
 import {
   CENTERING_SESSION_VERSION,
@@ -16,6 +18,7 @@ import type {
 } from "@/lib/centering/types";
 import { useCenteringStore } from "@/stores/centeringStore";
 import { CardWorkspace } from "./CardWorkspace";
+import { ExportPreviewModal } from "./ExportPreviewModal";
 import { SummaryPanel } from "./SummaryPanel";
 
 export function CenteringApp() {
@@ -33,6 +36,20 @@ export function CenteringApp() {
   });
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportPreview, setExportPreview] = useState<{
+    previewUrl: string;
+    filename: string;
+    blob: Blob;
+  } | null>(null);
+
+  const closeExportPreview = useCallback(() => {
+    setExportPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev.previewUrl);
+      return null;
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +81,13 @@ export function CenteringApp() {
     !perspectiveOpen.front &&
     !perspectiveOpen.back;
 
+  const persistActionsTitle =
+    !front.imageSrc || !back.imageSrc
+      ? "Upload both sides first"
+      : perspectiveOpen.front || perspectiveOpen.back
+        ? "Close perspective editor first"
+        : undefined;
+
   const onSave = async () => {
     setSaveError(null);
     setSaving(true);
@@ -81,9 +105,39 @@ export function CenteringApp() {
     }
   };
 
+  const onExport = async () => {
+    setExportError(null);
+    setExporting(true);
+    try {
+      const { front: f, back: b } = useCenteringStore.getState();
+      const fr = computeSideResult(f.guides);
+      const br = computeSideResult(b.guides);
+      const blob = await renderCenteringExportPng({
+        front: f,
+        back: b,
+        frontResult: fr,
+        backResult: br,
+        gradeSummary: summarizeCenteringByCompany(fr, br),
+      });
+      const stamp = new Date().toISOString().slice(0, 19).replaceAll(":", "-");
+      const filename = `poke-centering-${stamp}.png`;
+      const previewUrl = URL.createObjectURL(blob);
+      setExportPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev.previewUrl);
+        return { previewUrl, filename, blob };
+      });
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const onResetAll = async () => {
     setViewerMagnify(null);
     setSaveError(null);
+    setExportError(null);
+    closeExportPreview();
     resetAll();
     try {
       await clearCenteringSession();
@@ -110,6 +164,15 @@ export function CenteringApp() {
 
   return (
     <>
+      {exportPreview ? (
+        <ExportPreviewModal
+          previewUrl={exportPreview.previewUrl}
+          filename={exportPreview.filename}
+          blob={exportPreview.blob}
+          onClose={closeExportPreview}
+        />
+      ) : null}
+
       <header className="mb-8 flex flex-col gap-4 rounded-3xl border border-zinc-800 bg-zinc-900/80 px-5 py-5 shadow-2xl shadow-black/20 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div className="flex items-center gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10">
@@ -131,15 +194,18 @@ export function CenteringApp() {
               onClick={() => void onSave()}
               disabled={!canSave || saving}
               className="rounded-2xl border border-emerald-500/30 bg-emerald-500/15 px-4 py-2 text-sm font-medium text-emerald-200 transition hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
-              title={
-                !front.imageSrc || !back.imageSrc
-                  ? "Upload both sides first"
-                  : perspectiveOpen.front || perspectiveOpen.back
-                    ? "Close perspective editor first"
-                    : undefined
-              }
+              title={persistActionsTitle}
             >
               {saving ? "Saving…" : "Save session"}
+            </button>
+            <button
+              type="button"
+              onClick={() => void onExport()}
+              disabled={!canSave || exporting}
+              className="rounded-2xl border border-emerald-500/30 bg-emerald-500/15 px-4 py-2 text-sm font-medium text-emerald-200 transition hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+              title={persistActionsTitle}
+            >
+              {exporting ? "Preparing…" : "Export"}
             </button>
             <button
               type="button"
@@ -152,6 +218,11 @@ export function CenteringApp() {
           {saveError ? (
             <p className="text-right text-xs text-red-400" role="alert">
               {saveError}
+            </p>
+          ) : null}
+          {exportError ? (
+            <p className="text-right text-xs text-red-400" role="alert">
+              {exportError}
             </p>
           ) : null}
         </div>
