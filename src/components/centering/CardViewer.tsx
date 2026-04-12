@@ -15,6 +15,9 @@ import {
 import type { GuideLines, ViewTransform } from "@/lib/centering/types";
 import { GuideOverlay } from "./GuideOverlay";
 
+/** Max width of the card bezel at 1× viewer zoom (matches previous fixed `max-w-[472px]`). */
+const VIEWER_BASE_MAX_WIDTH_PX = 472;
+
 type CardViewerProps = {
   imageSrc: string | null;
   transform: ViewTransform;
@@ -24,6 +27,8 @@ type CardViewerProps = {
   guideColor: string;
   fitRequestId: number;
   onUpload: (file: File) => void;
+  /** 1 = default; 3 enlarges the whole viewer (toolbar focus mode). */
+  viewerScale?: number;
 };
 
 /** Scale image (contain) so it fills the frame; one axis touches the inner edge. */
@@ -46,6 +51,7 @@ export function CardViewer({
   guideColor,
   fitRequestId,
   onUpload,
+  viewerScale = 1,
 }: CardViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const emptyFileRef = useRef<HTMLInputElement>(null);
@@ -62,6 +68,12 @@ export function CardViewer({
   transformRef.current = transform;
 
   const prevFrameWRef = useRef<number | null>(null);
+
+  // Reset width tracking when zoom changes so the resize handler does not distort transform.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: effect must re-run when viewerScale changes
+  useLayoutEffect(() => {
+    prevFrameWRef.current = null;
+  }, [viewerScale]);
 
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -191,9 +203,16 @@ export function CardViewer({
   const dispW = nw * scale;
   const dispH = nh * scale;
 
+  const bezelMaxWidth = `min(100%, ${VIEWER_BASE_MAX_WIDTH_PX * viewerScale}px)`;
+
   return (
-    <div className="relative flex min-h-[min(520px,62vh)] w-full items-center justify-center rounded-[28px] border border-zinc-800 bg-[radial-gradient(circle_at_top,rgba(39,39,42,0.5),rgba(9,9,11,0.95))] p-4 sm:p-6">
-      <div className="relative w-full max-w-[472px]">
+    <div
+      className="relative flex w-full items-center justify-center rounded-[28px] border border-zinc-800 bg-[radial-gradient(circle_at_top,rgba(39,39,42,0.5),rgba(9,9,11,0.95))] p-4 sm:p-6"
+      style={{
+        minHeight: `min(${Math.round(520 * viewerScale)}px, 88vh)`,
+      }}
+    >
+      <div className="relative w-full" style={{ maxWidth: bezelMaxWidth }}>
         <div className="relative rounded-[32px] border border-zinc-700 bg-zinc-950 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
           <div
             className="pointer-events-none absolute inset-3 rounded-[26px] border border-zinc-800 bg-gradient-to-b from-zinc-900/90 to-zinc-950"

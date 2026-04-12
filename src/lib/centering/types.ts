@@ -58,8 +58,8 @@ export type SideResult = {
 
 export type CardSide = "front" | "back";
 
-/** Widen one workspace column (2× or 3× vs the other). Only one side at a time. */
-export type ViewerMagnifyFactor = 2 | 3;
+/** Focus mode for one workspace (3× hides the other side). Only one side at a time. */
+export type ViewerMagnifyFactor = 3;
 
 export type ViewerMagnify = {
   side: CardSide;

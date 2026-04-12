@@ -1,6 +1,5 @@
 "use client";
 
-import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { renderCenteringExportPng } from "@/lib/centering/exportCompositeImage";
 import { summarizeCenteringByCompany } from "@/lib/centering/gradeEstimate";
@@ -146,11 +145,6 @@ export function CenteringApp() {
     }
   };
 
-  const col1 =
-    viewerMagnify?.side === "front" ? `${viewerMagnify.factor}fr` : "1fr";
-  const col2 =
-    viewerMagnify?.side === "back" ? `${viewerMagnify.factor}fr` : "1fr";
-
   const setMagnifyForSide = (
     side: CardSide,
     factor: ViewerMagnifyFactor | null,
@@ -229,36 +223,42 @@ export function CenteringApp() {
       </header>
 
       <div
-        className="grid grid-cols-1 gap-6 lg:gap-6 xl:items-start xl:[grid-template-columns:var(--pc-col-1)_var(--pc-col-2)_minmax(280px,360px)]"
-        style={
-          {
-            "--pc-col-1": col1,
-            "--pc-col-2": col2,
-          } as CSSProperties
-        }
+        className={`grid grid-cols-1 gap-6 lg:gap-6 xl:items-start ${
+          viewerMagnify
+            ? "xl:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]"
+            : "xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(280px,360px)]"
+        }`}
       >
-        <CardWorkspace
-          title="FRONT"
-          sideLabel="Side A"
-          side="front"
-          viewerMagnify={viewerMagnify}
-          onViewerMagnify={(factor) => setMagnifyForSide("front", factor)}
-          sideResult={frontResult}
-          onPerspectiveModeChange={(open) =>
-            setPerspectiveForSide("front", open)
-          }
-        />
-        <CardWorkspace
-          title="BACK"
-          sideLabel="Side B"
-          side="back"
-          viewerMagnify={viewerMagnify}
-          onViewerMagnify={(factor) => setMagnifyForSide("back", factor)}
-          sideResult={backResult}
-          onPerspectiveModeChange={(open) =>
-            setPerspectiveForSide("back", open)
-          }
-        />
+        <div
+          className={`min-w-0 ${viewerMagnify?.side === "back" ? "hidden" : ""}`}
+        >
+          <CardWorkspace
+            title="FRONT"
+            sideLabel="Side A"
+            side="front"
+            viewerMagnify={viewerMagnify}
+            onViewerMagnify={(factor) => setMagnifyForSide("front", factor)}
+            sideResult={frontResult}
+            onPerspectiveModeChange={(open) =>
+              setPerspectiveForSide("front", open)
+            }
+          />
+        </div>
+        <div
+          className={`min-w-0 ${viewerMagnify?.side === "front" ? "hidden" : ""}`}
+        >
+          <CardWorkspace
+            title="BACK"
+            sideLabel="Side B"
+            side="back"
+            viewerMagnify={viewerMagnify}
+            onViewerMagnify={(factor) => setMagnifyForSide("back", factor)}
+            sideResult={backResult}
+            onPerspectiveModeChange={(open) =>
+              setPerspectiveForSide("back", open)
+            }
+          />
+        </div>
         <SummaryPanel front={frontResult} back={backResult} />
       </div>
     </>

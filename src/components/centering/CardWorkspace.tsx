@@ -106,6 +106,7 @@ export function CardWorkspace({
 
   const viewerMagnifyActive =
     viewerMagnify?.side === side ? viewerMagnify.factor : null;
+  const viewerScale = viewerMagnify?.side === side ? viewerMagnify.factor : 1;
   const [fitRequestId, setFitRequestId] = useState(0);
   const [perspectiveMode, setPerspectiveMode] = useState(false);
   const [perspectiveSession, setPerspectiveSession] = useState(0);
@@ -117,10 +118,22 @@ export function CardWorkspace({
     useState<PerspectiveQuad | null>(null);
   const [perspectivePreviewValid, setPerspectivePreviewValid] = useState(false);
   const replaceInputRef = useRef<HTMLInputElement>(null);
+  const prevViewerScaleRef = useRef<number | null>(null);
 
   useEffect(() => {
     onPerspectiveModeChange?.(perspectiveMode);
   }, [perspectiveMode, onPerspectiveModeChange]);
+
+  useEffect(() => {
+    if (prevViewerScaleRef.current === null) {
+      prevViewerScaleRef.current = viewerScale;
+      return;
+    }
+    if (prevViewerScaleRef.current !== viewerScale) {
+      prevViewerScaleRef.current = viewerScale;
+      setFitRequestId((n) => n + 1);
+    }
+  }, [viewerScale]);
 
   useEffect(() => {
     if (!state.rawImageSrc) {
@@ -329,6 +342,7 @@ export function CardWorkspace({
           guideColor={state.guideColor}
           fitRequestId={fitRequestId}
           onUpload={onUpload}
+          viewerScale={viewerScale}
         />
       ) : null}
 

@@ -7,7 +7,6 @@ const VIEWER_MAGNIFY_BUTTONS: {
   label: string;
 }[] = [
   { factor: null, label: "1×" },
-  { factor: 2, label: "2×" },
   { factor: 3, label: "3×" },
 ];
 
@@ -108,8 +107,8 @@ export function Toolbar({
                 onClick={() => onViewerMagnify(factor)}
                 title={
                   factor === null
-                    ? "Equal column width"
-                    : `Widen this side (${factor}× vs other)`
+                    ? "Show both sides"
+                    : `Enlarge this viewer (${factor}×) and hide the other side`
                 }
                 className={`rounded-xl border px-2.5 py-1.5 text-xs tabular-nums transition ${
                   active
