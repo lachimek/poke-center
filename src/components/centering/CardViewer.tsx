@@ -1,5 +1,6 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -25,6 +26,7 @@ type CardViewerProps = {
   onUpload: (file: File) => void;
 };
 
+/** Scale image (contain) so it fills the frame; one axis touches the inner edge. */
 function fitScale(
   frameW: number,
   frameH: number,
@@ -32,7 +34,7 @@ function fitScale(
   natH: number,
 ): number {
   if (natW <= 0 || natH <= 0 || frameW <= 0 || frameH <= 0) return 1;
-  return Math.min(frameW / natW, frameH / natH) * 0.92;
+  return Math.min(frameW / natW, frameH / natH);
 }
 
 export function CardViewer({
@@ -126,22 +128,29 @@ export function CardViewer({
 
   const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
-    const w = img.naturalWidth;
-    const h = img.naturalHeight;
-    setNatural({ w, h });
-    requestAnimationFrame(() => {
-      const el = containerRef.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      const fw = Math.max(1, r.width);
-      const fh = Math.max(1, r.height);
-      const s = fitScale(fw, fh, w, h);
-      onTransformChange({
-        scale: s,
-        offsetX: 0,
-        offsetY: 0,
+    const applyFitFromImage = () => {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      if (w <= 0 || h <= 0) return;
+      setNatural({ w, h });
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const el = containerRef.current;
+          if (!el) return;
+          const r = el.getBoundingClientRect();
+          const fw = Math.max(1, r.width);
+          const fh = Math.max(1, r.height);
+          const s = fitScale(fw, fh, w, h);
+          onTransformChange({
+            scale: s,
+            offsetX: 0,
+            offsetY: 0,
+          });
+        });
       });
-    });
+    };
+
+    void img.decode().then(applyFitFromImage).catch(applyFitFromImage);
   };
 
   const panStart = (e: React.PointerEvent) => {
@@ -202,6 +211,19 @@ export function CardViewer({
               className="absolute inset-0 bg-[linear-gradient(180deg,#0a0a0c_0%,#050506_100%)]"
               aria-hidden
             />
+
+            {imageSrc && !natural ? (
+              <output
+                className="pointer-events-none absolute inset-0 z-[12] m-0 flex flex-col items-center justify-center gap-3 border-0 bg-zinc-950/90 p-0"
+                aria-live="polite"
+              >
+                <Loader2
+                  className="h-9 w-9 animate-spin text-emerald-400/80"
+                  aria-hidden
+                />
+                <span className="text-xs text-zinc-500">Loading image…</span>
+              </output>
+            ) : null}
 
             {!imageSrc && (
               <div className="absolute inset-0 z-[15] flex flex-col items-center justify-center gap-4 px-6 text-center">

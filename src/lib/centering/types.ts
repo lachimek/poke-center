@@ -31,9 +31,9 @@ export type PerspectiveQuad = {
 };
 
 export type CardSideState = {
-  /** Original upload; never replaced by perspective warp. */
+  /** Original upload as a `data:` URL; never replaced by perspective warp. */
   rawImageSrc: string | null;
-  /** Working image for centering (rectified blob URL or same as raw). */
+  /** Working image for centering: rectified `data:` PNG after warp, or same as `rawImageSrc` until then. */
   imageSrc: string | null;
   transform: ViewTransform;
   guides: GuideLines;
