@@ -81,3 +81,16 @@ export function summarizeCenteringByCompany(
     },
   ];
 }
+
+/** Compact one-line copy for saved-card lists (not tooltips). */
+export function formatGradeSummaryForList(
+  summary: CompanyCenteringSummary[],
+): string {
+  return summary
+    .map((s) => {
+      const tier =
+        s.qualifies && s.bestTier ? s.bestTier : "Below listed tiers";
+      return `${s.company}: ${tier}`;
+    })
+    .join(" · ");
+}

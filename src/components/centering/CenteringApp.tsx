@@ -5,11 +5,11 @@ import { renderCenteringExportPng } from "@/lib/centering/exportCompositeImage";
 import { summarizeCenteringByCompany } from "@/lib/centering/gradeEstimate";
 import { computeSideResult } from "@/lib/centering/math";
 import {
-  CENTERING_SESSION_VERSION,
   clearCenteringSession,
   loadCenteringSession,
   saveCenteringSession,
 } from "@/lib/centering/sessionDb";
+import { CENTERING_SESSION_VERSION } from "@/lib/centering/sessionPayload";
 import type {
   CardSide,
   ViewerMagnify,
@@ -17,9 +17,10 @@ import type {
 } from "@/lib/centering/types";
 import { useCenteringStore } from "@/stores/centeringStore";
 import { CardWorkspace } from "./CardWorkspace";
-import { ExportPreviewModal } from "./ExportPreviewModal";
-import { SummaryPanel } from "./SummaryPanel";
 import { CenteringAppHeader } from "./CenteringAppHeader";
+import { ExportPreviewModal } from "./ExportPreviewModal";
+import { SaveCardToAccountModal } from "./SaveCardToAccountModal";
+import { SummaryPanel } from "./SummaryPanel";
 
 export function CenteringApp() {
   const front = useCenteringStore((s) => s.front);
@@ -43,6 +44,7 @@ export function CenteringApp() {
     filename: string;
     blob: Blob;
   } | null>(null);
+  const [saveToAccountOpen, setSaveToAccountOpen] = useState(false);
 
   const closeExportPreview = useCallback(() => {
     setExportPreview((prev) => {
@@ -168,11 +170,23 @@ export function CenteringApp() {
         />
       ) : null}
 
+      {saveToAccountOpen ? (
+        <SaveCardToAccountModal
+          onClose={() => setSaveToAccountOpen(false)}
+          payload={{
+            v: CENTERING_SESSION_VERSION,
+            front,
+            back,
+          }}
+        />
+      ) : null}
+
       <CenteringAppHeader
         onSave={onSave}
         canSave={canSave}
         saving={saving}
         persistActionsTitle={persistActionsTitle}
+        onOpenSaveToAccount={() => setSaveToAccountOpen(true)}
         onExport={onExport}
         exporting={exporting}
         exportError={exportError}

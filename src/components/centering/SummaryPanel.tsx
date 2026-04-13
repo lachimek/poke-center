@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
+import { useCallback, useMemo, useState } from "react";
 import { LoginModal } from "@/components/auth/LoginModal";
 import { RegisterModal } from "@/components/auth/RegisterModal";
 import { HoverTooltip } from "@/components/ui/HoverTooltip";
@@ -162,13 +163,21 @@ export function SummaryPanel({ front, back }: SummaryPanelProps) {
         )}
 
         {session?.user && (
-          <button
-            type="button"
-            onClick={() => signOut({ redirect: false })}
-            className="w-full rounded-2xl border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-zinc-700 hover:text-zinc-100"
-          >
-            Sign out
-          </button>
+          <div className="flex flex-col gap-2">
+            <Link
+              href="/protected/cards"
+              className="block w-full rounded-2xl border border-zinc-700 bg-zinc-950/80 px-4 py-2.5 text-center text-sm font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800"
+            >
+              Saved cards
+            </Link>
+            <button
+              type="button"
+              onClick={() => signOut({ redirect: false })}
+              className="w-full rounded-2xl border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-zinc-700 hover:text-zinc-100"
+            >
+              Sign out
+            </button>
+          </div>
         )}
       </section>
 

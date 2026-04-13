@@ -2,9 +2,8 @@
 
 import { FoldHorizontal, FoldVertical } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  DEFAULT_GUIDES,
-} from "@/lib/centering/constants";
+import { usePerspectiveSession } from "@/hooks/usePerspectiveSession";
+import { DEFAULT_GUIDES } from "@/lib/centering/constants";
 import { readFileAsDataUrl } from "@/lib/centering/imageUtils";
 import type {
   CardSide,
@@ -14,7 +13,6 @@ import type {
   ViewerMagnifyFactor,
   ViewTransform,
 } from "@/lib/centering/types";
-import { usePerspectiveSession } from "@/hooks/usePerspectiveSession";
 import { useCenteringStore } from "@/stores/centeringStore";
 import { CardViewer } from "./CardViewer";
 import { PerspectiveModal } from "./PerspectiveModal";
