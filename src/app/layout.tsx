@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import AuthProvider from "@/providers/Auth";
+import { getSession } from "@/lib/auth";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,11 +20,13 @@ export const metadata: Metadata = {
     "Manual Pokémon / TCG card centering measurement in the browser. All processing is local.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getSession();
+
   return (
     <html
       lang="en"
@@ -32,7 +36,7 @@ export default function RootLayout({
         className="flex min-h-full flex-col bg-zinc-950 text-zinc-100"
         suppressHydrationWarning
       >
-        {children}
+        <AuthProvider session={session}>{children}</AuthProvider>
       </body>
     </html>
   );

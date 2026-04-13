@@ -1,6 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { signOut, useSession } from "next-auth/react";
+import { LoginModal } from "@/components/auth/LoginModal";
+import { RegisterModal } from "@/components/auth/RegisterModal";
 import { HoverTooltip } from "@/components/ui/HoverTooltip";
 import {
   GRADING_COMPANY_TOOLTIPS,
@@ -13,7 +16,32 @@ type SummaryPanelProps = {
   back: SideResult;
 };
 
+type AuthModal = "login" | "register" | null;
+
 export function SummaryPanel({ front, back }: SummaryPanelProps) {
+  const { data: session, status } = useSession();
+  const [authModal, setAuthModal] = useState<AuthModal>(null);
+  const [showRegisteredBanner, setShowRegisteredBanner] = useState(false);
+
+  const openLogin = useCallback(() => {
+    setAuthModal("login");
+  }, []);
+
+  const openRegister = useCallback(() => {
+    setShowRegisteredBanner(false);
+    setAuthModal("register");
+  }, []);
+
+  const closeModal = useCallback(() => {
+    setAuthModal(null);
+    setShowRegisteredBanner(false);
+  }, []);
+
+  const switchToLoginAfterRegister = useCallback(() => {
+    setShowRegisteredBanner(true);
+    setAuthModal("login");
+  }, []);
+
   const gradeSummary = useMemo(
     () => summarizeCenteringByCompany(front, back),
     [front, back],
@@ -103,6 +131,60 @@ export function SummaryPanel({ front, back }: SummaryPanelProps) {
           </div>
         </div>
       </section>
+
+      <section className="rounded-3xl border border-zinc-800 bg-zinc-900/70 p-5 shadow-2xl shadow-black/20">
+        <div className="mb-4">
+          <div className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">
+            Account
+          </div>
+          <h3 className="text-lg font-medium text-zinc-100">
+            {session?.user ? session.user.email : "Guest"}
+          </h3>
+        </div>
+
+        {status !== "loading" && !session?.user && (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={openLogin}
+              className="flex-1 rounded-2xl border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-200 transition hover:bg-zinc-700"
+            >
+              Sign in
+            </button>
+            <button
+              type="button"
+              onClick={openRegister}
+              className="flex-1 rounded-2xl border border-emerald-500/30 bg-emerald-500/15 px-4 py-2.5 text-sm font-medium text-emerald-200 transition hover:bg-emerald-500/25"
+            >
+              Create account
+            </button>
+          </div>
+        )}
+
+        {session?.user && (
+          <button
+            type="button"
+            onClick={() => signOut({ redirect: false })}
+            className="w-full rounded-2xl border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-zinc-700 hover:text-zinc-100"
+          >
+            Sign out
+          </button>
+        )}
+      </section>
+
+      {authModal === "login" && (
+        <LoginModal
+          showRegisteredBanner={showRegisteredBanner}
+          onClose={closeModal}
+          onSwitchToRegister={openRegister}
+        />
+      )}
+      {authModal === "register" && (
+        <RegisterModal
+          onClose={closeModal}
+          onSwitchToLogin={switchToLoginAfterRegister}
+        />
+      )}
     </aside>
   );
 }
