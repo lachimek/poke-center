@@ -39,13 +39,25 @@ type GuideLineHandleProps = {
   positionPx: number;
   accent: string;
   accentDim: string;
-  bindAxis: (key: GuideKey, axis: GuideAxis) => {
+  bindAxis: (
+    key: GuideKey,
+    axis: GuideAxis,
+  ) => {
     onPointerDown: (e: React.PointerEvent) => void;
     onPointerMove: (e: React.PointerEvent) => void;
     onPointerUp: (e: React.PointerEvent) => void;
     onPointerCancel: (e: React.PointerEvent) => void;
   };
 };
+
+function isSameGuides(a: GuideLines, b: GuideLines): boolean {
+  return (
+    a.left === b.left &&
+    a.right === b.right &&
+    a.top === b.top &&
+    a.bottom === b.bottom
+  );
+}
 
 function GuideLineHandle({
   guideKey,
@@ -113,6 +125,11 @@ export function GuideOverlay({
     startClient: number;
     startGuides: GuideLines;
   } | null>(null);
+  const latestGuidesRef = useRef(guides);
+  const pendingGuidesRef = useRef<GuideLines | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  latestGuidesRef.current = guides;
 
   const applyDrag = useCallback(
     (clientPos: number) => {
@@ -121,7 +138,18 @@ export function GuideOverlay({
       const delta = (clientPos - d.startClient) / displayScale;
       const next = { ...d.startGuides };
       next[d.key] = d.startGuides[d.key] + delta;
-      onGuidesChange(clampGuides(next));
+      const clamped = clampGuides(next);
+      if (isSameGuides(clamped, latestGuidesRef.current)) return;
+      pendingGuidesRef.current = clamped;
+      if (rafRef.current != null) return;
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        const pending = pendingGuidesRef.current;
+        pendingGuidesRef.current = null;
+        if (!pending) return;
+        if (isSameGuides(pending, latestGuidesRef.current)) return;
+        onGuidesChange(pending);
+      });
     },
     [displayScale, onGuidesChange],
   );
@@ -135,6 +163,11 @@ export function GuideOverlay({
       }
     }
     dragRef.current = null;
+    pendingGuidesRef.current = null;
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
   }, []);
 
   const bindAxis = useCallback(
