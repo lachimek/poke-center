@@ -4,10 +4,7 @@ import {
   DEFAULT_VIEW_TRANSFORM,
 } from "@/lib/centering/constants";
 import { warpToCardSize } from "@/lib/centering/perspective";
-import type {
-  CardSide,
-  PerspectiveQuad,
-} from "@/lib/centering/types";
+import type { CardSide, PerspectiveQuad } from "@/lib/centering/types";
 import { useCenteringStore } from "@/stores/centeringStore";
 
 type UsePerspectiveSessionParams = {
@@ -107,7 +104,15 @@ export function usePerspectiveSession({
     img.onerror = () => {
       setPerspectiveHint("Could not load image for warp.");
     };
-  }, [perspectiveDraft, perspectiveValid, setSide, side, rawImageSrc, onFitRequest, resetPerspectiveState]);
+  }, [
+    perspectiveDraft,
+    perspectiveValid,
+    setSide,
+    side,
+    rawImageSrc,
+    onFitRequest,
+    resetPerspectiveState,
+  ]);
 
   const openPerspectiveAfterUpload = useCallback(
     (dataUrl: string) => {

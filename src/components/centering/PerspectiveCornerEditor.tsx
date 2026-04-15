@@ -3,18 +3,18 @@
 import { ChevronRight, LayoutGrid } from "lucide-react";
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import {
+  CORNER_LABELS,
+  CORNER_ORDER,
+  type CornerId,
+  type LiveStateRef,
+  useCornerDrag,
+} from "@/hooks/useCornerDrag";
+import { useImageLayout } from "@/hooks/useImageLayout";
+import {
   isPerspectiveQuadValid,
   naturalToOverlayPx,
 } from "@/lib/centering/perspective";
 import type { PerspectiveQuad } from "@/lib/centering/types";
-import {
-  type CornerId,
-  type LiveStateRef,
-  CORNER_ORDER,
-  CORNER_LABELS,
-  useCornerDrag,
-} from "@/hooks/useCornerDrag";
-import { useImageLayout } from "@/hooks/useImageLayout";
 import { QuadOverlaySvg } from "./QuadOverlaySvg";
 
 const ZOOM_SCALE = 2.85;

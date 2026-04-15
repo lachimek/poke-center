@@ -2,12 +2,12 @@
 
 import { Loader2 } from "lucide-react";
 import { useRef } from "react";
+import { useCardViewerTransform } from "@/hooks/useCardViewerTransform";
 import {
   CARD_LOGICAL_HEIGHT,
   CARD_LOGICAL_WIDTH,
 } from "@/lib/centering/constants";
 import type { GuideLines, ViewTransform } from "@/lib/centering/types";
-import { useCardViewerTransform } from "@/hooks/useCardViewerTransform";
 import { GuideOverlay } from "./GuideOverlay";
 
 /** Max width of the card bezel at 1x viewer zoom (matches previous fixed `max-w-[472px]`). */
@@ -39,19 +39,14 @@ export function CardViewer({
 }: CardViewerProps) {
   const emptyFileRef = useRef<HTMLInputElement>(null);
 
-  const {
-    containerRef,
-    framePx,
-    natural,
-    onImageLoad,
-    panHandlers,
-  } = useCardViewerTransform({
-    imageSrc,
-    transform,
-    onTransformChange,
-    fitRequestId,
-    viewerScale,
-  });
+  const { containerRef, framePx, natural, onImageLoad, panHandlers } =
+    useCardViewerTransform({
+      imageSrc,
+      transform,
+      onTransformChange,
+      fitRequestId,
+      viewerScale,
+    });
 
   const displayScale = framePx.w / CARD_LOGICAL_WIDTH;
 
