@@ -1,8 +1,8 @@
 import { GripVertical } from "lucide-react";
+import type { CornerId } from "@/hooks/useCornerDrag";
+import { CORNER_LABELS, CORNER_ORDER } from "@/hooks/useCornerDrag";
 import { naturalToOverlayPx } from "@/lib/centering/perspective";
 import type { PerspectiveQuad } from "@/lib/centering/types";
-import type { CornerId } from "@/hooks/useCornerDrag";
-import { CORNER_ORDER, CORNER_LABELS } from "@/hooks/useCornerDrag";
 
 const HANDLE_OFFSET_PX = 52;
 
@@ -92,10 +92,7 @@ function CornerCrosshair({ cx, cy, isFocus, arm = 10 }: CornerCrosshairProps) {
       aria-hidden
       role="presentation"
     >
-      <g
-        stroke="rgba(250,204,21,0.95)"
-        strokeWidth={isFocus ? 2 : 1.25}
-      >
+      <g stroke="rgba(250,204,21,0.95)" strokeWidth={isFocus ? 2 : 1.25}>
         <line x1={cx - arm} y1={cy} x2={cx + arm} y2={cy} />
         <line x1={cx} y1={cy - arm} x2={cx} y2={cy + arm} />
       </g>
@@ -111,7 +108,13 @@ type GripHandleProps = {
   onPointerDown: (e: React.PointerEvent) => void;
 };
 
-function GripHandle({ cornerId, cx, cy, isFocus, onPointerDown }: GripHandleProps) {
+function GripHandle({
+  cornerId,
+  cx,
+  cy,
+  isFocus,
+  onPointerDown,
+}: GripHandleProps) {
   const { x: hx, y: hy } = handleOverlayPosition(cornerId, cx, cy);
   return (
     <button
@@ -167,7 +170,14 @@ export function QuadOverlaySvg({
         className="pointer-events-none absolute left-0 top-0"
         style={{ width: dw, height: dh }}
       >
-        <QuadEdges quad={quad} localRect={localRect} nw={nw} nh={nh} dw={dw} dh={dh} />
+        <QuadEdges
+          quad={quad}
+          localRect={localRect}
+          nw={nw}
+          nh={nh}
+          dw={dw}
+          dh={dh}
+        />
         {CORNER_ORDER.map((id) => {
           const pt = quad[id];
           if (!pt) return null;
@@ -221,9 +231,7 @@ export function QuadOverlaySvg({
             <g
               key={`x-${id}`}
               stroke={
-                isFocus
-                  ? "rgba(250,204,21,0.95)"
-                  : "rgba(250,204,21,0.45)"
+                isFocus ? "rgba(250,204,21,0.95)" : "rgba(250,204,21,0.45)"
               }
               strokeWidth={isFocus ? 2 : 1}
             >

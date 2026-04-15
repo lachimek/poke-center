@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   clientToNaturalFromContain,
   naturalToOverlayPx,
@@ -95,7 +101,11 @@ type UseCornerDragParams = {
   setQuad: React.Dispatch<React.SetStateAction<PerspectiveQuad | null>>;
 };
 
-export function useCornerDrag({ imgRef, liveRef, setQuad }: UseCornerDragParams) {
+export function useCornerDrag({
+  imgRef,
+  liveRef,
+  setQuad,
+}: UseCornerDragParams) {
   const dragRef = useRef<DragRef | null>(null);
   const handleUpRef = useRef<() => void>(() => {});
   const [isDragging, setIsDragging] = useState(false);
@@ -108,33 +118,40 @@ export function useCornerDrag({ imgRef, liveRef, setQuad }: UseCornerDragParams)
     handleUpRef.current();
   }, []);
 
-  const onWindowPointerMove = useCallback((e: PointerEvent) => {
-    const d = dragRef.current;
-    const img = imgRef.current;
-    if (!d || !img) return;
-    const p = pointerClientToNatural(
-      e.clientX,
-      e.clientY,
-      img,
-      liveRef.current,
-      zoomMapAnchorRef.current,
-    );
-    if (!p) return;
-    const nx = d.startCorner.x + (p.x - d.startNatural.x);
-    const ny = d.startCorner.y + (p.y - d.startNatural.y);
-    const nat = liveRef.current.natural;
-    if (!nat) return;
-    const x = Math.max(0, Math.min(nat.w, nx));
-    const y = Math.max(0, Math.min(nat.h, ny));
-    setQuad((q) => {
-      if (!q) return q;
-      const prev = q[d.corner];
-      if (prev && Math.abs(prev.x - x) < 0.25 && Math.abs(prev.y - y) < 0.25) {
-        return q;
-      }
-      return { ...q, [d.corner]: { x, y } };
-    });
-  }, [imgRef, liveRef, setQuad]);
+  const onWindowPointerMove = useCallback(
+    (e: PointerEvent) => {
+      const d = dragRef.current;
+      const img = imgRef.current;
+      if (!d || !img) return;
+      const p = pointerClientToNatural(
+        e.clientX,
+        e.clientY,
+        img,
+        liveRef.current,
+        zoomMapAnchorRef.current,
+      );
+      if (!p) return;
+      const nx = d.startCorner.x + (p.x - d.startNatural.x);
+      const ny = d.startCorner.y + (p.y - d.startNatural.y);
+      const nat = liveRef.current.natural;
+      if (!nat) return;
+      const x = Math.max(0, Math.min(nat.w, nx));
+      const y = Math.max(0, Math.min(nat.h, ny));
+      setQuad((q) => {
+        if (!q) return q;
+        const prev = q[d.corner];
+        if (
+          prev &&
+          Math.abs(prev.x - x) < 0.25 &&
+          Math.abs(prev.y - y) < 0.25
+        ) {
+          return q;
+        }
+        return { ...q, [d.corner]: { x, y } };
+      });
+    },
+    [imgRef, liveRef, setQuad],
+  );
 
   useLayoutEffect(() => {
     handleUpRef.current = () => {

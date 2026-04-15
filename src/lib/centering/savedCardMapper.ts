@@ -6,6 +6,12 @@ import type { savedCards } from "@/lib/db/schema";
 export type SavedCardRow = InferSelectModel<typeof savedCards>;
 
 export type SavedCardInsert = InferInsertModel<typeof savedCards>;
+export type SavedCardImageRefs = {
+  frontRawImageId: string;
+  frontImageId: string;
+  backRawImageId: string;
+  backImageId: string;
+};
 
 function toConfiguration(
   payload: CenteringSessionPayload,
@@ -19,34 +25,40 @@ export function toSavedCardInsert(
   userId: string,
   name: string,
   payload: CenteringSessionPayload,
+  imageRefs: SavedCardImageRefs,
 ): SavedCardInsert {
-  const { front, back } = payload;
   return {
     userId,
     name,
-    frontRawImageSrc: front.rawImageSrc as string,
-    frontImageSrc: front.imageSrc as string,
-    backRawImageSrc: back.rawImageSrc as string,
-    backImageSrc: back.imageSrc as string,
+    frontRawImageId: imageRefs.frontRawImageId,
+    frontImageId: imageRefs.frontImageId,
+    backRawImageId: imageRefs.backRawImageId,
+    backImageId: imageRefs.backImageId,
     configuration: toConfiguration(payload),
   };
 }
 
 export function toCenteringSessionPayload(
   row: SavedCardRow,
+  imageSrc: {
+    frontRawImageSrc: string;
+    frontImageSrc: string;
+    backRawImageSrc: string;
+    backImageSrc: string;
+  },
 ): CenteringSessionPayload {
   const cfg = row.configuration;
   return {
     v: cfg.v,
     front: {
       ...cfg.front,
-      rawImageSrc: row.frontRawImageSrc,
-      imageSrc: row.frontImageSrc,
+      rawImageSrc: imageSrc.frontRawImageSrc,
+      imageSrc: imageSrc.frontImageSrc,
     },
     back: {
       ...cfg.back,
-      rawImageSrc: row.backRawImageSrc,
-      imageSrc: row.backImageSrc,
+      rawImageSrc: imageSrc.backRawImageSrc,
+      imageSrc: imageSrc.backImageSrc,
     },
   };
 }

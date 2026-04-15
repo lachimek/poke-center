@@ -1,10 +1,10 @@
+import { compare } from "bcryptjs";
+import { eq } from "drizzle-orm";
 import type { AuthOptions } from "next-auth";
 import { getServerSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { db } from "../db";
 import { users } from "../db/schema";
-import { eq } from "drizzle-orm";
-import { compare } from "bcryptjs";
 
 const authOptions: AuthOptions = {
   session: { strategy: "jwt" },

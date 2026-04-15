@@ -15,6 +15,20 @@
       "when": 1776107874728,
       "tag": "0001_marvelous_carmella_unuscione",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776280177285,
+      "tag": "0002_warm_sebastian_shaw",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1776282865070,
+      "tag": "0003_curious_crusher_hogan",
+      "breakpoints": true
     }
   ]
 }

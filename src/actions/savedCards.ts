@@ -6,6 +6,7 @@ import { isCenteringSessionConfiguration } from "@/lib/centering/sessionConfigur
 import { isAccountSavePayload } from "@/lib/centering/sessionPayload";
 import { db } from "@/lib/db";
 import { savedCards } from "@/lib/db/schema";
+import { uploadCardImageSet } from "@/lib/storage/imageService";
 
 const NAME_MAX_LEN = 120;
 
@@ -41,15 +42,45 @@ export async function saveCardToAccount(
     };
   }
 
-  const insert = toSavedCardInsert(userId, trimmed, payload);
-  if (!isCenteringSessionConfiguration(insert.configuration)) {
+  const { rawImageSrc: _fr, imageSrc: _fi, ...frontCfg } = payload.front;
+  const { rawImageSrc: _br, imageSrc: _bi, ...backCfg } = payload.back;
+  if (
+    !isCenteringSessionConfiguration({
+      v: payload.v,
+      front: frontCfg,
+      back: backCfg,
+    })
+  ) {
     return { ok: false, error: "Invalid configuration." };
   }
 
   try {
+    const frontRawImageSrc = payload.front.rawImageSrc as string;
+    const frontImageSrc = payload.front.imageSrc as string;
+    const backRawImageSrc = payload.back.rawImageSrc as string;
+    const backImageSrc = payload.back.imageSrc as string;
+
+    const uploaded = await uploadCardImageSet(userId, {
+      frontRawImageSrc,
+      frontImageSrc,
+      backRawImageSrc,
+      backImageSrc,
+    });
+
+    const insert = toSavedCardInsert(userId, trimmed, payload, {
+      frontRawImageId: uploaded.frontRaw.id,
+      frontImageId: uploaded.frontProcessed.id,
+      backRawImageId: uploaded.backRaw.id,
+      backImageId: uploaded.backProcessed.id,
+    });
+
     await db.insert(savedCards).values(insert);
-  } catch {
-    return { ok: false, error: "Could not save. Please try again." };
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Could not save. Please try again.";
+    return { ok: false, error: message };
   }
 
   return { ok: true };

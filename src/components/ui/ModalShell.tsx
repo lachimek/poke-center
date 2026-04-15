@@ -81,9 +81,7 @@ export function ModalShell({
           <h2 id={titleId} className="text-lg font-semibold text-zinc-100">
             {title}
           </h2>
-          {subtitle && (
-            <p className="mt-1 text-xs text-zinc-500">{subtitle}</p>
-          )}
+          {subtitle && <p className="mt-1 text-xs text-zinc-500">{subtitle}</p>}
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
