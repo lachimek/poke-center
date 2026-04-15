@@ -1,14 +1,49 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { saveCardToAccount } from "@/actions/savedCards";
 import { btnBase, ModalShell } from "@/components/ui/ModalShell";
+import { dataUrlToBlob } from "@/lib/centering/imageUtils";
+import type { CenteringSessionConfiguration } from "@/lib/centering/sessionConfiguration";
 import type { CenteringSessionPayload } from "@/lib/centering/sessionPayload";
 
 type SaveCardToAccountModalProps = {
   onClose: () => void;
   payload: CenteringSessionPayload;
 };
+
+type UploadPurpose =
+  | "front_raw"
+  | "front_processed"
+  | "back_raw"
+  | "back_processed";
+
+type UploadItem = {
+  purpose: UploadPurpose;
+  dataUrl: string;
+};
+
+type CreateUploadsResponse =
+  | {
+      ok: true;
+      uploads: Array<{
+        purpose: UploadPurpose;
+        mimeType: string;
+        byteSize: number;
+        objectKey: string;
+        uploadUrl: string;
+      }>;
+    }
+  | { ok: false; error: string };
+
+type FinalizeResponse = { ok: true } | { ok: false; error: string };
+
+function toConfiguration(
+  payload: CenteringSessionPayload,
+): CenteringSessionConfiguration {
+  const { rawImageSrc: _fr, imageSrc: _fi, ...front } = payload.front;
+  const { rawImageSrc: _br, imageSrc: _bi, ...back } = payload.back;
+  return { v: payload.v, front, back };
+}
 
 export function SaveCardToAccountModal({
   onClose,
@@ -27,9 +62,84 @@ export function SaveCardToAccountModal({
     setError(null);
     setSaving(true);
     try {
-      const result = await saveCardToAccount(name, payload);
-      if (!result.ok) {
-        setError(result.error);
+      const uploadItems: UploadItem[] = [
+        { purpose: "front_raw", dataUrl: payload.front.rawImageSrc ?? "" },
+        { purpose: "front_processed", dataUrl: payload.front.imageSrc ?? "" },
+        { purpose: "back_raw", dataUrl: payload.back.rawImageSrc ?? "" },
+        { purpose: "back_processed", dataUrl: payload.back.imageSrc ?? "" },
+      ];
+      if (uploadItems.some((item) => !item.dataUrl.startsWith("data:"))) {
+        setError("Invalid card data. Upload both sides and try again.");
+        return;
+      }
+
+      const localUploads = uploadItems.map((item) => {
+        const { blob, mimeType } = dataUrlToBlob(item.dataUrl);
+        return { ...item, blob, mimeType };
+      });
+
+      const createRes = await fetch("/api/uploads/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uploads: localUploads.map((upload) => ({
+            purpose: upload.purpose,
+            mimeType: upload.mimeType,
+            byteSize: upload.blob.size,
+          })),
+        }),
+      });
+      const createJson = (await createRes.json()) as CreateUploadsResponse;
+      if (!createRes.ok || !createJson.ok) {
+        setError(
+          createJson.ok
+            ? "Could not start upload."
+            : createJson.error || "Could not start upload.",
+        );
+        return;
+      }
+
+      const byPurpose = new Map(
+        createJson.uploads.map((upload) => [upload.purpose, upload]),
+      );
+      for (const local of localUploads) {
+        const signed = byPurpose.get(local.purpose);
+        if (!signed) {
+          setError("Upload session is missing required image variants.");
+          return;
+        }
+        const putRes = await fetch(signed.uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": local.mimeType },
+          body: local.blob,
+        });
+        if (!putRes.ok) {
+          setError("Image upload failed. Please try again.");
+          return;
+        }
+      }
+
+      const finalizeRes = await fetch("/api/cards/finalize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          configuration: toConfiguration(payload),
+          uploads: createJson.uploads.map((upload) => ({
+            purpose: upload.purpose,
+            objectKey: upload.objectKey,
+            mimeType: upload.mimeType,
+            byteSize: upload.byteSize,
+          })),
+        }),
+      });
+      const finalizeJson = (await finalizeRes.json()) as FinalizeResponse;
+      if (!finalizeRes.ok || !finalizeJson.ok) {
+        setError(
+          finalizeJson.ok
+            ? "Could not save. Please try again."
+            : finalizeJson.error || "Could not save. Please try again.",
+        );
         return;
       }
       onClose();

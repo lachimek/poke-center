@@ -1,21 +1,28 @@
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { images } from "@/lib/db/schema";
-import { uploadImageBuffer } from "@/lib/storage/r2";
+import { signUploadUrl } from "@/lib/storage/r2";
 
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
-const IMAGE_MIME_TO_EXT: Record<string, string> = {
+export const IMAGE_MIME_TO_EXT: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/webp": "webp",
 };
 
-type UploadPurpose =
+export type UploadPurpose =
   | "front_raw"
   | "front_processed"
   | "back_raw"
   | "back_processed";
+
+export const REQUIRED_UPLOAD_PURPOSES: UploadPurpose[] = [
+  "front_raw",
+  "front_processed",
+  "back_raw",
+  "back_processed",
+];
 
 export type UploadedImageRecord = {
   id: string;
@@ -26,29 +33,7 @@ export type UploadedImageRecord = {
   etag: string | null;
 };
 
-function parseDataUrl(dataUrl: string): { mimeType: string; buffer: Buffer } {
-  const match = /^data:([^;,]+);base64,(.+)$/i.exec(dataUrl);
-  if (!match) {
-    throw new Error("Image must be a valid base64 data URL.");
-  }
-
-  const mimeType = match[1].toLowerCase();
-  if (!(mimeType in IMAGE_MIME_TO_EXT)) {
-    throw new Error("Unsupported image type. Allowed: png, jpeg, webp.");
-  }
-
-  const buffer = Buffer.from(match[2], "base64");
-  if (buffer.byteLength === 0) {
-    throw new Error("Image payload is empty.");
-  }
-  if (buffer.byteLength > MAX_IMAGE_BYTES) {
-    throw new Error("Image exceeds size limit (10 MB).");
-  }
-
-  return { mimeType, buffer };
-}
-
-function toObjectKey(
+export function toObjectKey(
   userId: string,
   purpose: UploadPurpose,
   mimeType: string,
@@ -57,29 +42,84 @@ function toObjectKey(
   return `users/${userId}/cards/${purpose}/${randomUUID()}.${ext}`;
 }
 
-export async function uploadDataUrlImage(
-  userId: string,
-  dataUrl: string,
-  purpose: UploadPurpose,
-): Promise<UploadedImageRecord> {
-  const { mimeType, buffer } = parseDataUrl(dataUrl);
-  const objectKey = toObjectKey(userId, purpose, mimeType);
-  const uploaded = await uploadImageBuffer({
-    objectKey,
-    contentType: mimeType,
-    body: buffer,
-  });
+export type ImageUploadRequest = {
+  purpose: UploadPurpose;
+  mimeType: string;
+  byteSize: number;
+};
 
-  const [row] = await db
+export function isAllowedImageMimeType(mimeType: string): boolean {
+  return mimeType in IMAGE_MIME_TO_EXT;
+}
+
+export function validateUploadRequest(
+  input: ImageUploadRequest,
+): string | null {
+  if (!isAllowedImageMimeType(input.mimeType)) {
+    return "Unsupported image type. Allowed: png, jpeg, webp.";
+  }
+  if (!Number.isFinite(input.byteSize) || input.byteSize <= 0) {
+    return "Image size must be a positive number.";
+  }
+  if (input.byteSize > MAX_IMAGE_BYTES) {
+    return "Image exceeds size limit (10 MB).";
+  }
+  return null;
+}
+
+export async function createPresignedUpload(
+  userId: string,
+  input: ImageUploadRequest,
+): Promise<{
+  purpose: UploadPurpose;
+  mimeType: string;
+  byteSize: number;
+  objectKey: string;
+  uploadUrl: string;
+  expiresIn: number;
+}> {
+  const objectKey = toObjectKey(userId, input.purpose, input.mimeType);
+  const signed = await signUploadUrl(objectKey, input.mimeType);
+  return {
+    purpose: input.purpose,
+    mimeType: input.mimeType,
+    byteSize: input.byteSize,
+    objectKey,
+    uploadUrl: signed.uploadUrl,
+    expiresIn: signed.expiresIn,
+  };
+}
+
+export type FinalizedUpload = {
+  purpose: UploadPurpose;
+  objectKey: string;
+  mimeType: string;
+  byteSize: number;
+};
+
+export type CardImageUploads = {
+  frontRaw: UploadedImageRecord;
+  frontProcessed: UploadedImageRecord;
+  backRaw: UploadedImageRecord;
+  backProcessed: UploadedImageRecord;
+};
+
+export async function persistUploadedImages(
+  userId: string,
+  uploads: FinalizedUpload[],
+): Promise<CardImageUploads> {
+  const rows = await db
     .insert(images)
-    .values({
-      userId,
-      objectKey: uploaded.objectKey,
-      publicUrl: uploaded.objectUrl,
-      mimeType,
-      sizeBytes: uploaded.size,
-      etag: uploaded.etag,
-    })
+    .values(
+      uploads.map((upload) => ({
+        userId,
+        objectKey: upload.objectKey,
+        publicUrl: `r2://${upload.objectKey}`,
+        mimeType: upload.mimeType,
+        sizeBytes: upload.byteSize,
+        etag: null,
+      })),
+    )
     .returning({
       id: images.id,
       objectKey: images.objectKey,
@@ -89,31 +129,17 @@ export async function uploadDataUrlImage(
       etag: images.etag,
     });
 
-  return row;
-}
+  const byPurpose = new Map(
+    uploads.map((upload, idx) => [upload.purpose, rows[idx]]),
+  );
+  const frontRaw = byPurpose.get("front_raw");
+  const frontProcessed = byPurpose.get("front_processed");
+  const backRaw = byPurpose.get("back_raw");
+  const backProcessed = byPurpose.get("back_processed");
 
-export type CardImageUploads = {
-  frontRaw: UploadedImageRecord;
-  frontProcessed: UploadedImageRecord;
-  backRaw: UploadedImageRecord;
-  backProcessed: UploadedImageRecord;
-};
-
-export async function uploadCardImageSet(
-  userId: string,
-  payload: {
-    frontRawImageSrc: string;
-    frontImageSrc: string;
-    backRawImageSrc: string;
-    backImageSrc: string;
-  },
-): Promise<CardImageUploads> {
-  const [frontRaw, frontProcessed, backRaw, backProcessed] = await Promise.all([
-    uploadDataUrlImage(userId, payload.frontRawImageSrc, "front_raw"),
-    uploadDataUrlImage(userId, payload.frontImageSrc, "front_processed"),
-    uploadDataUrlImage(userId, payload.backRawImageSrc, "back_raw"),
-    uploadDataUrlImage(userId, payload.backImageSrc, "back_processed"),
-  ]);
+  if (!frontRaw || !frontProcessed || !backRaw || !backProcessed) {
+    throw new Error("Missing required uploaded image variants.");
+  }
 
   return { frontRaw, frontProcessed, backRaw, backProcessed };
 }

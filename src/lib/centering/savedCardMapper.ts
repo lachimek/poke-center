@@ -27,6 +27,20 @@ export function toSavedCardInsert(
   payload: CenteringSessionPayload,
   imageRefs: SavedCardImageRefs,
 ): SavedCardInsert {
+  return toSavedCardInsertFromConfiguration(
+    userId,
+    name,
+    toConfiguration(payload),
+    imageRefs,
+  );
+}
+
+export function toSavedCardInsertFromConfiguration(
+  userId: string,
+  name: string,
+  configuration: CenteringSessionConfiguration,
+  imageRefs: SavedCardImageRefs,
+): SavedCardInsert {
   return {
     userId,
     name,
@@ -34,7 +48,7 @@ export function toSavedCardInsert(
     frontImageId: imageRefs.frontImageId,
     backRawImageId: imageRefs.backRawImageId,
     backImageId: imageRefs.backImageId,
-    configuration: toConfiguration(payload),
+    configuration,
   };
 }
 

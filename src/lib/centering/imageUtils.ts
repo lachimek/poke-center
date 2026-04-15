@@ -32,3 +32,21 @@ export function loadImageElement(src: string): Promise<HTMLImageElement> {
     img.src = src;
   });
 }
+
+/** Convert data URL to Blob and mime type for direct uploads. */
+export function dataUrlToBlob(dataUrl: string): {
+  blob: Blob;
+  mimeType: string;
+} {
+  const match = /^data:([^;,]+);base64,(.+)$/i.exec(dataUrl);
+  if (!match) {
+    throw new Error("Invalid image data URL.");
+  }
+  const mimeType = match[1].toLowerCase();
+  const payload = atob(match[2]);
+  const bytes = new Uint8Array(payload.length);
+  for (let i = 0; i < payload.length; i += 1) {
+    bytes[i] = payload.charCodeAt(i);
+  }
+  return { blob: new Blob([bytes], { type: mimeType }), mimeType };
+}

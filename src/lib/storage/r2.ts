@@ -27,6 +27,12 @@ export type UploadImageResult = {
   size: number;
 };
 
+export type SignedUploadResult = {
+  uploadUrl: string;
+  objectKey: string;
+  expiresIn: number;
+};
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -108,6 +114,30 @@ export async function signObjectUrl(
     }),
     { expiresIn: expiresInSeconds },
   );
+}
+
+export async function signUploadUrl(
+  objectKey: string,
+  contentType: string,
+  expiresInSeconds = 300,
+): Promise<SignedUploadResult> {
+  const cfg = getR2Config();
+  const client = getR2Client();
+  const uploadUrl = await getSignedUrl(
+    client,
+    new PutObjectCommand({
+      Bucket: cfg.bucketName,
+      Key: objectKey,
+      ContentType: contentType,
+    }),
+    { expiresIn: expiresInSeconds },
+  );
+
+  return {
+    uploadUrl,
+    objectKey,
+    expiresIn: expiresInSeconds,
+  };
 }
 
 export async function deleteObject(objectKey: string): Promise<void> {
