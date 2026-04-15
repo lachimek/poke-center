@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+# Ensure Node is available in non-interactive git hook shells.
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+[ -f "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh"
+[ -f "$HOME/.zprofile" ] && . "$HOME/.zprofile"
+
+./node_modules/.bin/lint-staged
