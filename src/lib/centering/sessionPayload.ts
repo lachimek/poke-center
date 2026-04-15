@@ -76,19 +76,3 @@ export function isSessionPayload(v: unknown): v is CenteringSessionPayload {
   if (o.v !== CENTERING_SESSION_VERSION) return false;
   return isCardSideState(o.front) && isCardSideState(o.back);
 }
-
-function isNonNullDataUrl(s: unknown): s is string {
-  return typeof s === "string" && s.length > 0 && s.startsWith("data:");
-}
-
-/** Saved-card rows require all four images as non-null `data:` URLs. */
-export function isAccountSavePayload(v: unknown): v is CenteringSessionPayload {
-  if (!isSessionPayload(v)) return false;
-  const { front: f, back: b } = v;
-  return (
-    isNonNullDataUrl(f.rawImageSrc) &&
-    isNonNullDataUrl(f.imageSrc) &&
-    isNonNullDataUrl(b.rawImageSrc) &&
-    isNonNullDataUrl(b.imageSrc)
-  );
-}
