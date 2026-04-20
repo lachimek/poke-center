@@ -102,9 +102,12 @@ export function CardWorkspace({
     perspectiveHint,
     perspectivePreviewQuad,
     perspectivePreviewValid,
+    detectingCorners,
+    detectedQuad,
     openPerspective,
     cancelPerspective,
     applyPerspective,
+    autoDetectCorners,
     onPerspectiveDraftChange,
     onStablePerspectivePreviewChange,
     openPerspectiveAfterUpload,
@@ -222,6 +225,9 @@ export function CardWorkspace({
           perspectivePreviewQuad={perspectivePreviewQuad}
           perspectivePreviewValid={perspectivePreviewValid}
           perspectiveHint={perspectiveHint}
+          detectingCorners={detectingCorners}
+          detectedQuad={detectedQuad}
+          onAutoDetectCorners={autoDetectCorners}
           onConfirm={applyPerspective}
           onCancel={cancelPerspective}
         />

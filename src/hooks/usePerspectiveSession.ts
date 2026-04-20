@@ -3,6 +3,7 @@ import {
   DEFAULT_GUIDES,
   DEFAULT_VIEW_TRANSFORM,
 } from "@/lib/centering/constants";
+import type { DetectCornersResponse } from "@/lib/centering/detectCornersContract";
 import { warpToCardSize } from "@/lib/centering/perspective";
 import type { CardSide, PerspectiveQuad } from "@/lib/centering/types";
 import { useCenteringStore } from "@/stores/centeringStore";
@@ -29,6 +30,10 @@ export function usePerspectiveSession({
   const [perspectivePreviewQuad, setPerspectivePreviewQuad] =
     useState<PerspectiveQuad | null>(null);
   const [perspectivePreviewValid, setPerspectivePreviewValid] = useState(false);
+  const [detectingCorners, setDetectingCorners] = useState(false);
+  const [detectedQuad, setDetectedQuad] = useState<PerspectiveQuad | null>(
+    null,
+  );
 
   const resetPerspectiveState = useCallback(() => {
     setPerspectiveDraft(null);
@@ -36,6 +41,8 @@ export function usePerspectiveSession({
     setPerspectiveHint(null);
     setPerspectivePreviewQuad(null);
     setPerspectivePreviewValid(false);
+    setDetectingCorners(false);
+    setDetectedQuad(null);
   }, []);
 
   useEffect(() => {
@@ -114,6 +121,41 @@ export function usePerspectiveSession({
     resetPerspectiveState,
   ]);
 
+  const autoDetectCorners = useCallback(async () => {
+    if (!rawImageSrc || detectingCorners) return;
+    setDetectingCorners(true);
+    try {
+      const blob = await fetch(rawImageSrc).then((res) => res.blob());
+      const file = new File([blob], `${side}-raw.png`, {
+        type: blob.type || "image/png",
+      });
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const response = await fetch("/api/cards/detect-corners", {
+        method: "POST",
+        body: formData,
+      });
+      const payload = (await response.json()) as DetectCornersResponse;
+      if (!response.ok || !payload.ok) {
+        setPerspectiveHint(
+          payload.ok
+            ? "Could not detect corners."
+            : payload.error || "Could not detect corners.",
+        );
+        return;
+      }
+      setDetectedQuad(payload.quad);
+      setPerspectiveHint(
+        "Detected corners loaded. Adjust if needed, then confirm.",
+      );
+    } catch {
+      setPerspectiveHint("Could not detect corners.");
+    } finally {
+      setDetectingCorners(false);
+    }
+  }, [detectingCorners, rawImageSrc, side]);
+
   const openPerspectiveAfterUpload = useCallback(
     (dataUrl: string) => {
       setPerspectiveSession((n) => n + 1);
@@ -139,9 +181,12 @@ export function usePerspectiveSession({
     perspectiveHint,
     perspectivePreviewQuad,
     perspectivePreviewValid,
+    detectingCorners,
+    detectedQuad,
     openPerspective,
     cancelPerspective,
     applyPerspective,
+    autoDetectCorners,
     onPerspectiveDraftChange,
     onStablePerspectivePreviewChange,
     openPerspectiveAfterUpload,

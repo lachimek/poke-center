@@ -24,6 +24,9 @@ type PerspectiveModalProps = {
   perspectivePreviewQuad: PerspectiveQuad | null;
   perspectivePreviewValid: boolean;
   perspectiveHint: string | null;
+  detectingCorners: boolean;
+  detectedQuad: PerspectiveQuad | null;
+  onAutoDetectCorners: () => void;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -39,6 +42,9 @@ export function PerspectiveModal({
   perspectivePreviewQuad,
   perspectivePreviewValid,
   perspectiveHint,
+  detectingCorners,
+  detectedQuad,
+  onAutoDetectCorners,
   onConfirm,
   onCancel,
 }: PerspectiveModalProps) {
@@ -60,6 +66,14 @@ export function PerspectiveModal({
             </p>
           )}
           <div className="flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              disabled={detectingCorners}
+              onClick={onAutoDetectCorners}
+              className={`${btnBase} border-indigo-500/35 bg-indigo-600/90 text-white hover:bg-indigo-500 disabled:border-zinc-700 disabled:bg-zinc-800 disabled:text-zinc-500`}
+            >
+              {detectingCorners ? "Detecting..." : "Auto detect corners"}
+            </button>
             <button
               type="button"
               onClick={onCancel}
@@ -86,6 +100,7 @@ export function PerspectiveModal({
             embeddedInModal
             rawImageSrc={rawImageSrc}
             savedQuad={savedQuad}
+            externalQuad={detectedQuad}
             onDraftChange={onDraftChange}
             onStablePreviewChange={onStablePreviewChange}
           />
