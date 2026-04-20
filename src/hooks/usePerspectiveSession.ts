@@ -6,6 +6,7 @@ import {
 import type { DetectCornersResponse } from "@/lib/centering/detectCornersContract";
 import { warpToCardSize } from "@/lib/centering/perspective";
 import type { CardSide, PerspectiveQuad } from "@/lib/centering/types";
+import { notifyError, notifySuccess } from "@/lib/toast";
 import { useCenteringStore } from "@/stores/centeringStore";
 
 type UsePerspectiveSessionParams = {
@@ -104,12 +105,17 @@ export function usePerspectiveSession({
         onFitRequest();
         setPerspectiveMode(false);
         resetPerspectiveState();
+        notifySuccess(
+          `Perspective correction applied to the ${side === "front" ? "front" : "back"} image.`,
+        );
       } catch {
-        setPerspectiveHint("Could not build rectified image.");
+        setPerspectiveHint(null);
+        notifyError("Could not build rectified image.");
       }
     };
     img.onerror = () => {
-      setPerspectiveHint("Could not load image for warp.");
+      setPerspectiveHint(null);
+      notifyError("Could not load image for warp.");
     };
   }, [
     perspectiveDraft,
@@ -138,7 +144,8 @@ export function usePerspectiveSession({
       });
       const payload = (await response.json()) as DetectCornersResponse;
       if (!response.ok || !payload.ok) {
-        setPerspectiveHint(
+        setPerspectiveHint(null);
+        notifyError(
           payload.ok
             ? "Could not detect corners."
             : payload.error || "Could not detect corners.",
@@ -146,11 +153,13 @@ export function usePerspectiveSession({
         return;
       }
       setDetectedQuad(payload.quad);
-      setPerspectiveHint(
-        "Detected corners loaded. Adjust if needed, then confirm.",
+      setPerspectiveHint(null);
+      notifySuccess(
+        `Detected corners for the ${side === "front" ? "front" : "back"} image.`,
       );
     } catch {
-      setPerspectiveHint("Could not detect corners.");
+      setPerspectiveHint(null);
+      notifyError("Could not detect corners.");
     } finally {
       setDetectingCorners(false);
     }

@@ -13,6 +13,7 @@ import type {
   ViewerMagnifyFactor,
   ViewTransform,
 } from "@/lib/centering/types";
+import { notifyError } from "@/lib/toast";
 import { useCenteringStore } from "@/stores/centeringStore";
 import { CardViewer } from "./CardViewer";
 import { PerspectiveModal } from "./PerspectiveModal";
@@ -139,7 +140,7 @@ export function CardWorkspace({
           openPerspectiveAfterUpload(dataUrl);
         },
         () => {
-          // Error shown via perspective hint if modal is open
+          notifyError("Could not read that image file.");
         },
       );
     },

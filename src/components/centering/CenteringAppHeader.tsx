@@ -8,8 +8,6 @@ type CenteringAppHeaderProps = {
   onOpenSaveToAccount?: () => void;
   onExport: () => void;
   exporting: boolean;
-  exportError: string | null;
-  saveError: string | null;
   onResetAll: () => void;
 };
 export function CenteringAppHeader({
@@ -20,8 +18,6 @@ export function CenteringAppHeader({
   onOpenSaveToAccount,
   onExport,
   exporting,
-  exportError,
-  saveError,
   onResetAll,
 }: CenteringAppHeaderProps) {
   const { data: session, status } = useSession();
@@ -84,16 +80,6 @@ export function CenteringAppHeader({
             Reset
           </button>
         </div>
-        {saveError ? (
-          <p className="text-right text-xs text-red-400" role="alert">
-            {saveError}
-          </p>
-        ) : null}
-        {exportError ? (
-          <p className="text-right text-xs text-red-400" role="alert">
-            {exportError}
-          </p>
-        ) : null}
       </div>
     </header>
   );

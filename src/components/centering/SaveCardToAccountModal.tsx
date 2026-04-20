@@ -5,6 +5,7 @@ import { btnBase, ModalShell } from "@/components/ui/ModalShell";
 import { dataUrlToBlob } from "@/lib/centering/imageUtils";
 import type { CenteringSessionConfiguration } from "@/lib/centering/sessionConfiguration";
 import type { CenteringSessionPayload } from "@/lib/centering/sessionPayload";
+import { notifyError, notifySuccess } from "@/lib/toast";
 
 type SaveCardToAccountModalProps = {
   onClose: () => void;
@@ -51,7 +52,6 @@ export function SaveCardToAccountModal({
 }: SaveCardToAccountModalProps) {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const safeClose = useCallback(() => {
     if (saving) return;
@@ -59,7 +59,6 @@ export function SaveCardToAccountModal({
   }, [onClose, saving]);
 
   const handleSave = useCallback(async () => {
-    setError(null);
     setSaving(true);
     try {
       const uploadItems: UploadItem[] = [
@@ -69,7 +68,7 @@ export function SaveCardToAccountModal({
         { purpose: "back_processed", dataUrl: payload.back.imageSrc ?? "" },
       ];
       if (uploadItems.some((item) => !item.dataUrl.startsWith("data:"))) {
-        setError("Invalid card data. Upload both sides and try again.");
+        notifyError("Invalid card data. Upload both sides and try again.");
         return;
       }
 
@@ -91,7 +90,7 @@ export function SaveCardToAccountModal({
       });
       const createJson = (await createRes.json()) as CreateUploadsResponse;
       if (!createRes.ok || !createJson.ok) {
-        setError(
+        notifyError(
           createJson.ok
             ? "Could not start upload."
             : createJson.error || "Could not start upload.",
@@ -105,7 +104,7 @@ export function SaveCardToAccountModal({
       for (const local of localUploads) {
         const signed = byPurpose.get(local.purpose);
         if (!signed) {
-          setError("Upload session is missing required image variants.");
+          notifyError("Upload session is missing required image variants.");
           return;
         }
         const putRes = await fetch(signed.uploadUrl, {
@@ -114,7 +113,7 @@ export function SaveCardToAccountModal({
           body: local.blob,
         });
         if (!putRes.ok) {
-          setError("Image upload failed. Please try again.");
+          notifyError("Image upload failed. Please try again.");
           return;
         }
       }
@@ -135,16 +134,17 @@ export function SaveCardToAccountModal({
       });
       const finalizeJson = (await finalizeRes.json()) as FinalizeResponse;
       if (!finalizeRes.ok || !finalizeJson.ok) {
-        setError(
+        notifyError(
           finalizeJson.ok
             ? "Could not save. Please try again."
             : finalizeJson.error || "Could not save. Please try again.",
         );
         return;
       }
+      notifySuccess(`Saved "${name.trim()}" to your account.`);
       onClose();
     } catch {
-      setError("Something went wrong. Please try again.");
+      notifyError("Something went wrong. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -191,11 +191,6 @@ export function SaveCardToAccountModal({
           disabled={saving}
         />
       </label>
-      {error ? (
-        <p className="mt-3 text-sm text-red-400" role="alert">
-          {error}
-        </p>
-      ) : null}
     </ModalShell>
   );
 }

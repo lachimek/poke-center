@@ -15,6 +15,12 @@ import type {
   ViewerMagnify,
   ViewerMagnifyFactor,
 } from "@/lib/centering/types";
+import {
+  notifyError,
+  notifyInfo,
+  notifySuccess,
+  notifyWarning,
+} from "@/lib/toast";
 import { useCenteringStore } from "@/stores/centeringStore";
 import { CardWorkspace } from "./CardWorkspace";
 import { CenteringAppHeader } from "./CenteringAppHeader";
@@ -35,9 +41,7 @@ export function CenteringApp() {
     front: false,
     back: false,
   });
-  const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [exportError, setExportError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportPreview, setExportPreview] = useState<{
     previewUrl: string;
@@ -91,7 +95,6 @@ export function CenteringApp() {
         : undefined;
 
   const onSave = async () => {
-    setSaveError(null);
     setSaving(true);
     try {
       const { front: f, back: b } = useCenteringStore.getState();
@@ -100,15 +103,15 @@ export function CenteringApp() {
         front: f,
         back: b,
       });
+      notifySuccess("Session saved to this browser.");
     } catch (e) {
-      setSaveError(e instanceof Error ? e.message : "Save failed");
+      notifyError(e instanceof Error ? e.message : "Save failed.");
     } finally {
       setSaving(false);
     }
   };
 
   const onExport = async () => {
-    setExportError(null);
     setExporting(true);
     try {
       const { front: f, back: b } = useCenteringStore.getState();
@@ -128,8 +131,9 @@ export function CenteringApp() {
         if (prev) URL.revokeObjectURL(prev.previewUrl);
         return { previewUrl, filename, blob };
       });
+      notifySuccess("Export preview is ready.");
     } catch (e) {
-      setExportError(e instanceof Error ? e.message : "Export failed");
+      notifyError(e instanceof Error ? e.message : "Export failed.");
     } finally {
       setExporting(false);
     }
@@ -137,14 +141,14 @@ export function CenteringApp() {
 
   const onResetAll = async () => {
     setViewerMagnify(null);
-    setSaveError(null);
-    setExportError(null);
     closeExportPreview();
     resetAll();
     try {
       await clearCenteringSession();
+      notifyInfo("Workspace reset and local session cleared.");
     } catch {
       // storage may be blocked; in-memory state is already cleared
+      notifyWarning("Workspace reset, but local session could not be cleared.");
     }
   };
 
@@ -189,8 +193,6 @@ export function CenteringApp() {
         onOpenSaveToAccount={() => setSaveToAccountOpen(true)}
         onExport={onExport}
         exporting={exporting}
-        exportError={exportError}
-        saveError={saveError}
         onResetAll={onResetAll}
       />
 

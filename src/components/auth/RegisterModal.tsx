@@ -3,6 +3,7 @@
 import { useActionState, useEffect } from "react";
 import { type RegisterState, register } from "@/actions/auth";
 import { ModalShell } from "@/components/ui/ModalShell";
+import { notifySuccess } from "@/lib/toast";
 
 const initialState: RegisterState = {};
 
@@ -19,6 +20,7 @@ export function RegisterModal({
 
   useEffect(() => {
     if (state.success) {
+      notifySuccess("Account created. Sign in to continue.");
       onSwitchToLogin();
     }
   }, [state.success, onSwitchToLogin]);

@@ -4,18 +4,14 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { ModalShell } from "@/components/ui/ModalShell";
+import { notifySuccess } from "@/lib/toast";
 
 type LoginModalProps = {
-  showRegisteredBanner?: boolean;
   onClose: () => void;
   onSwitchToRegister: () => void;
 };
 
-export function LoginModal({
-  showRegisteredBanner,
-  onClose,
-  onSwitchToRegister,
-}: LoginModalProps) {
+export function LoginModal({ onClose, onSwitchToRegister }: LoginModalProps) {
   const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -42,6 +38,7 @@ export function LoginModal({
       return;
     }
 
+    notifySuccess("Signed in.");
     onClose();
     router.refresh();
   }
@@ -66,12 +63,6 @@ export function LoginModal({
         </p>
       }
     >
-      {showRegisteredBanner && (
-        <div className="mb-4 rounded-lg border border-emerald-800 bg-emerald-950/50 px-4 py-3 text-sm text-emerald-300">
-          Account created successfully. Please sign in.
-        </div>
-      )}
-
       {error && (
         <div className="mb-4 rounded-lg border border-red-800 bg-red-950/50 px-4 py-3 text-sm text-red-300">
           {error}
