@@ -11,6 +11,7 @@ import {
   summarizeCenteringByCompany,
 } from "@/lib/centering/gradeEstimate";
 import type { SideResult } from "@/lib/centering/types";
+import { notifyInfo } from "@/lib/toast";
 
 type SummaryPanelProps = {
   front: SideResult;
@@ -22,25 +23,26 @@ type AuthModal = "login" | "register" | null;
 export function SummaryPanel({ front, back }: SummaryPanelProps) {
   const { data: session, status } = useSession();
   const [authModal, setAuthModal] = useState<AuthModal>(null);
-  const [showRegisteredBanner, setShowRegisteredBanner] = useState(false);
 
   const openLogin = useCallback(() => {
     setAuthModal("login");
   }, []);
 
   const openRegister = useCallback(() => {
-    setShowRegisteredBanner(false);
     setAuthModal("register");
   }, []);
 
   const closeModal = useCallback(() => {
     setAuthModal(null);
-    setShowRegisteredBanner(false);
   }, []);
 
   const switchToLoginAfterRegister = useCallback(() => {
-    setShowRegisteredBanner(true);
     setAuthModal("login");
+  }, []);
+
+  const handleSignOut = useCallback(async () => {
+    await signOut({ redirect: false });
+    notifyInfo("Signed out.");
   }, []);
 
   const gradeSummary = useMemo(
@@ -172,7 +174,7 @@ export function SummaryPanel({ front, back }: SummaryPanelProps) {
             </Link>
             <button
               type="button"
-              onClick={() => signOut({ redirect: false })}
+              onClick={() => void handleSignOut()}
               className="w-full rounded-2xl border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:bg-zinc-700 hover:text-zinc-100"
             >
               Sign out
@@ -182,11 +184,7 @@ export function SummaryPanel({ front, back }: SummaryPanelProps) {
       </section>
 
       {authModal === "login" && (
-        <LoginModal
-          showRegisteredBanner={showRegisteredBanner}
-          onClose={closeModal}
-          onSwitchToRegister={openRegister}
-        />
+        <LoginModal onClose={closeModal} onSwitchToRegister={openRegister} />
       )}
       {authModal === "register" && (
         <RegisterModal

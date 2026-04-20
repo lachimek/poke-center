@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import AppToaster from "@/components/ui/AppToaster";
 import { getSession } from "@/lib/auth";
 import AuthProvider from "@/providers/Auth";
 
@@ -36,7 +37,10 @@ export default async function RootLayout({
         className="flex min-h-full flex-col bg-zinc-950 text-zinc-100"
         suppressHydrationWarning
       >
-        <AuthProvider session={session}>{children}</AuthProvider>
+        <AuthProvider session={session}>
+          {children}
+          <AppToaster />
+        </AuthProvider>
       </body>
     </html>
   );
