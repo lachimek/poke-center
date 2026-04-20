@@ -22,6 +22,7 @@ const ZOOM_SCALE = 2.85;
 type PerspectiveCornerEditorProps = {
   rawImageSrc: string;
   savedQuad: PerspectiveQuad | null;
+  externalQuad?: PerspectiveQuad | null;
   onDraftChange: (
     quad: PerspectiveQuad,
     valid: boolean,
@@ -42,6 +43,7 @@ function localImgRect(w: number, h: number): DOMRect {
 export function PerspectiveCornerEditor({
   rawImageSrc,
   savedQuad,
+  externalQuad = null,
   onDraftChange,
   embeddedInModal = false,
   onStablePreviewChange,
@@ -87,6 +89,11 @@ export function PerspectiveCornerEditor({
     liveRef,
     setQuad,
   });
+
+  useLayoutEffect(() => {
+    if (!externalQuad) return;
+    setQuad(externalQuad);
+  }, [externalQuad, setQuad]);
 
   useLayoutEffect(() => {
     if (!onStablePreviewChange) return;
