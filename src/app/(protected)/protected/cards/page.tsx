@@ -74,19 +74,35 @@ export default async function SavedCardsPage() {
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <div className="mx-auto max-w-3xl px-6 py-10 sm:px-8">
-        <div className="mb-8">
-          <Link
-            href="/"
-            className="text-sm text-zinc-500 transition hover:text-zinc-300"
-          >
-            ← Back to analyzer
-          </Link>
-          <h1 className="mt-4 text-2xl font-semibold tracking-tight">
-            Saved cards
-          </h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            Centering snapshots saved to your account.
-          </p>
+        <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <Link
+              href="/"
+              className="text-sm text-zinc-500 transition hover:text-zinc-300"
+            >
+              ← Back to analyzer
+            </Link>
+            <h1 className="mt-4 text-2xl font-semibold tracking-tight">
+              Saved cards
+            </h1>
+            <p className="mt-1 text-sm text-zinc-500">
+              Centering snapshots saved to your account.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/protected/capture"
+              className="rounded-2xl border border-emerald-500/30 bg-emerald-500/15 px-4 py-2 text-sm font-medium text-emerald-100 transition hover:bg-emerald-500/25"
+            >
+              + Capture
+            </Link>
+            <Link
+              href="/protected/wip"
+              className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm text-zinc-300 transition hover:bg-zinc-800/80"
+            >
+              WIP cards
+            </Link>
+          </div>
         </div>
 
         {rows.length === 0 ? (
