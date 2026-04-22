@@ -1,6 +1,12 @@
 "use client";
 
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  DEFAULT_GUIDE_COLOR,
+  DEFAULT_GUIDES,
+  DEFAULT_VIEW_TRANSFORM,
+} from "@/lib/centering/constants";
 import { renderCenteringExportPng } from "@/lib/centering/exportCompositeImage";
 import { summarizeCenteringByCompany } from "@/lib/centering/gradeEstimate";
 import { computeSideResult } from "@/lib/centering/math";
@@ -12,6 +18,7 @@ import {
 import { CENTERING_SESSION_VERSION } from "@/lib/centering/sessionPayload";
 import type {
   CardSide,
+  CardSideState,
   ViewerMagnify,
   ViewerMagnifyFactor,
 } from "@/lib/centering/types";
@@ -28,11 +35,65 @@ import { ExportPreviewModal } from "./ExportPreviewModal";
 import { SaveCardToAccountModal } from "./SaveCardToAccountModal";
 import { SummaryPanel } from "./SummaryPanel";
 
+type WipCardResponse =
+  | {
+      ok: true;
+      card: {
+        id: string;
+        name: string;
+        createdAt: string;
+        frontRawUrl: string | null;
+        frontRawMimeType: string | null;
+        backRawUrl: string | null;
+        backRawMimeType: string | null;
+      };
+    }
+  | { ok: false; error: string };
+
+async function fetchAsDataUrl(url: string): Promise<string> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to load image.");
+  const blob = await res.blob();
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const r = reader.result;
+      if (typeof r !== "string") {
+        reject(new Error("Expected data URL"));
+        return;
+      }
+      resolve(r);
+    };
+    reader.onerror = () =>
+      reject(reader.error ?? new Error("Failed to read file"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function sideStateFromDataUrl(dataUrl: string): CardSideState {
+  return {
+    rawImageSrc: dataUrl,
+    imageSrc: dataUrl,
+    transform: { ...DEFAULT_VIEW_TRANSFORM },
+    guides: { ...DEFAULT_GUIDES },
+    guideColor: DEFAULT_GUIDE_COLOR,
+    perspectiveCorners: null,
+  };
+}
+
 export function CenteringApp() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const wipParam = searchParams.get("wip");
+
   const front = useCenteringStore((s) => s.front);
   const back = useCenteringStore((s) => s.back);
   const resetAll = useCenteringStore((s) => s.resetAll);
   const hydrateFromSession = useCenteringStore((s) => s.hydrateFromSession);
+
+  const [wipId, setWipId] = useState<string | null>(null);
+  const [wipName, setWipName] = useState<string | null>(null);
+  const [wipLoading, setWipLoading] = useState(false);
 
   const [viewerMagnify, setViewerMagnify] = useState<ViewerMagnify | null>(
     null,
@@ -58,6 +119,7 @@ export function CenteringApp() {
   }, []);
 
   useEffect(() => {
+    if (wipParam) return;
     let cancelled = false;
     void loadCenteringSession().then((payload) => {
       if (cancelled || !payload) return;
@@ -66,7 +128,59 @@ export function CenteringApp() {
     return () => {
       cancelled = true;
     };
-  }, [hydrateFromSession]);
+  }, [hydrateFromSession, wipParam]);
+
+  useEffect(() => {
+    if (!wipParam) {
+      setWipId(null);
+      setWipName(null);
+      return;
+    }
+    if (wipParam === wipId) return;
+
+    let cancelled = false;
+    setWipLoading(true);
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/wip-cards/${encodeURIComponent(wipParam)}`,
+        );
+        const json = (await res.json()) as WipCardResponse;
+        if (cancelled) return;
+        if (!res.ok || !json.ok) {
+          notifyError(
+            json.ok
+              ? "Could not load WIP card."
+              : json.error || "Could not load WIP card.",
+          );
+          return;
+        }
+        if (!json.card.frontRawUrl || !json.card.backRawUrl) {
+          notifyError("WIP card is missing one or both images.");
+          return;
+        }
+        const [frontDataUrl, backDataUrl] = await Promise.all([
+          fetchAsDataUrl(json.card.frontRawUrl),
+          fetchAsDataUrl(json.card.backRawUrl),
+        ]);
+        if (cancelled) return;
+        hydrateFromSession(
+          sideStateFromDataUrl(frontDataUrl),
+          sideStateFromDataUrl(backDataUrl),
+        );
+        setWipId(json.card.id);
+        setWipName(json.card.name);
+        notifySuccess(`Loaded "${json.card.name}" from WIP.`);
+      } catch {
+        if (!cancelled) notifyError("Could not load WIP card.");
+      } finally {
+        if (!cancelled) setWipLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [wipParam, wipId, hydrateFromSession]);
 
   const setPerspectiveForSide = useCallback((side: CardSide, open: boolean) => {
     setPerspectiveOpen((p) => (p[side] === open ? p : { ...p, [side]: open }));
@@ -143,6 +257,11 @@ export function CenteringApp() {
     setViewerMagnify(null);
     closeExportPreview();
     resetAll();
+    setWipId(null);
+    setWipName(null);
+    if (wipParam) {
+      router.replace("/");
+    }
     try {
       await clearCenteringSession();
       notifyInfo("Workspace reset and local session cleared.");
@@ -151,6 +270,14 @@ export function CenteringApp() {
       notifyWarning("Workspace reset, but local session could not be cleared.");
     }
   };
+
+  const onWipFinalized = useCallback(() => {
+    setWipId(null);
+    setWipName(null);
+    resetAll();
+    void clearCenteringSession().catch(() => {});
+    router.replace("/protected/cards");
+  }, [resetAll, router]);
 
   const setMagnifyForSide = (
     side: CardSide,
@@ -182,6 +309,9 @@ export function CenteringApp() {
             front,
             back,
           }}
+          wipId={wipId}
+          defaultName={wipName ?? undefined}
+          onSaved={onWipFinalized}
         />
       ) : null}
 
@@ -195,6 +325,21 @@ export function CenteringApp() {
         exporting={exporting}
         onResetAll={onResetAll}
       />
+
+      {wipLoading || wipName ? (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-sky-500/20 bg-sky-500/10 px-5 py-3 text-sm text-sky-100">
+          <span>
+            {wipLoading
+              ? "Loading work-in-progress card…"
+              : `Centering work-in-progress card: "${wipName}".`}
+          </span>
+          {wipName && !wipLoading ? (
+            <span className="text-xs text-sky-200/80">
+              Saving to your account will consume this WIP entry.
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       <div
         className={`grid grid-cols-1 gap-6 lg:gap-6 xl:items-start ${

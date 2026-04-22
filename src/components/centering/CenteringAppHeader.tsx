@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 
 type CenteringAppHeaderProps = {
@@ -43,6 +44,28 @@ export function CenteringAppHeader({
       </div>
       <div className="flex flex-col items-stretch gap-2 sm:items-end">
         <div className="flex flex-wrap items-center gap-3">
+          {status === "authenticated" ? (
+            <>
+              <Link
+                href="/protected/capture"
+                className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm text-zinc-300 transition hover:bg-zinc-800/80"
+              >
+                Capture
+              </Link>
+              <Link
+                href="/protected/wip"
+                className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm text-zinc-300 transition hover:bg-zinc-800/80"
+              >
+                WIP cards
+              </Link>
+              <Link
+                href="/protected/cards"
+                className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm text-zinc-300 transition hover:bg-zinc-800/80"
+              >
+                Saved cards
+              </Link>
+            </>
+          ) : null}
           <button
             type="button"
             onClick={() => void onSave()}

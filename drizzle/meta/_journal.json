@@ -29,6 +29,13 @@
       "when": 1776282865070,
       "tag": "0003_curious_crusher_hogan",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1776724804541,
+      "tag": "0004_curvy_the_anarchist",
+      "breakpoints": true
     }
   ]
 }

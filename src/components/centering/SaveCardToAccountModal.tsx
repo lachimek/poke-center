@@ -10,6 +10,9 @@ import { notifyError, notifySuccess } from "@/lib/toast";
 type SaveCardToAccountModalProps = {
   onClose: () => void;
   payload: CenteringSessionPayload;
+  wipId?: string | null;
+  defaultName?: string;
+  onSaved?: () => void;
 };
 
 type UploadPurpose =
@@ -49,8 +52,11 @@ function toConfiguration(
 export function SaveCardToAccountModal({
   onClose,
   payload,
+  wipId,
+  defaultName,
+  onSaved,
 }: SaveCardToAccountModalProps) {
-  const [name, setName] = useState("");
+  const [name, setName] = useState(defaultName ?? "");
   const [saving, setSaving] = useState(false);
 
   const safeClose = useCallback(() => {
@@ -130,6 +136,7 @@ export function SaveCardToAccountModal({
             mimeType: upload.mimeType,
             byteSize: upload.byteSize,
           })),
+          ...(wipId ? { wipId } : {}),
         }),
       });
       const finalizeJson = (await finalizeRes.json()) as FinalizeResponse;
@@ -142,13 +149,14 @@ export function SaveCardToAccountModal({
         return;
       }
       notifySuccess(`Saved "${name.trim()}" to your account.`);
+      onSaved?.();
       onClose();
     } catch {
       notifyError("Something went wrong. Please try again.");
     } finally {
       setSaving(false);
     }
-  }, [name, onClose, payload]);
+  }, [name, onClose, onSaved, payload, wipId]);
 
   return (
     <ModalShell

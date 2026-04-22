@@ -1,40 +1,29 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { toSavedCardInsertFromConfiguration } from "@/lib/centering/savedCardMapper";
-import {
-  type CenteringSessionConfiguration,
-  isCenteringSessionConfiguration,
-} from "@/lib/centering/sessionConfiguration";
 import { db } from "@/lib/db";
-import { savedCards } from "@/lib/db/schema";
+import { images, wipCards } from "@/lib/db/schema";
 import {
   type FinalizedUpload,
   isAllowedImageMimeType,
-  persistUploadedImages,
-  REQUIRED_UPLOAD_PURPOSES,
-  type UploadPurpose,
   validateUploadRequest,
 } from "@/lib/storage/imageService";
-import { deleteWipCardCascade } from "@/lib/storage/wipCardService";
 
 const NAME_MAX_LEN = 120;
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+type WipUploadPurpose = "front_raw" | "back_raw";
+
+const REQUIRED_WIP_PURPOSES: WipUploadPurpose[] = ["front_raw", "back_raw"];
 
 type FinalizeUploadDescriptor = {
-  purpose: UploadPurpose;
+  purpose: WipUploadPurpose;
   objectKey: string;
   mimeType: string;
   byteSize: number;
 };
 
-function isUploadPurpose(value: unknown): value is UploadPurpose {
-  return (
-    value === "front_raw" ||
-    value === "front_processed" ||
-    value === "back_raw" ||
-    value === "back_processed"
-  );
+function isWipUploadPurpose(value: unknown): value is WipUploadPurpose {
+  return value === "front_raw" || value === "back_raw";
 }
 
 function isFinalizeUploadDescriptor(
@@ -43,7 +32,7 @@ function isFinalizeUploadDescriptor(
   if (typeof value !== "object" || value === null) return false;
   const o = value as Record<string, unknown>;
   return (
-    isUploadPurpose(o.purpose) &&
+    isWipUploadPurpose(o.purpose) &&
     typeof o.objectKey === "string" &&
     typeof o.mimeType === "string" &&
     typeof o.byteSize === "number"
@@ -52,28 +41,16 @@ function isFinalizeUploadDescriptor(
 
 function getFinalizePayload(body: unknown): {
   name: string;
-  configuration: CenteringSessionConfiguration;
   uploads: FinalizeUploadDescriptor[];
-  wipId: string | null;
 } | null {
   if (typeof body !== "object" || body === null) return null;
   const o = body as Record<string, unknown>;
   if (typeof o.name !== "string") return null;
-  if (!isCenteringSessionConfiguration(o.configuration)) return null;
   if (!Array.isArray(o.uploads)) return null;
   if (!o.uploads.every(isFinalizeUploadDescriptor)) return null;
-  let wipId: string | null = null;
-  if (typeof o.wipId === "string") {
-    if (!UUID_RE.test(o.wipId)) return null;
-    wipId = o.wipId;
-  } else if (o.wipId !== undefined && o.wipId !== null) {
-    return null;
-  }
   return {
     name: o.name,
-    configuration: o.configuration,
     uploads: o.uploads,
-    wipId,
   };
 }
 
@@ -81,12 +58,12 @@ function isOwnedObjectKey(userId: string, objectKey: string): boolean {
   return objectKey.startsWith(`users/${userId}/cards/`);
 }
 
-function toFinalizeUploads(
+function toWipFinalizeUploads(
   uploads: FinalizeUploadDescriptor[],
 ): FinalizedUpload[] | null {
   const set = new Set(uploads.map((upload) => upload.purpose));
-  const hasAll = REQUIRED_UPLOAD_PURPOSES.every((purpose) => set.has(purpose));
-  if (!hasAll || uploads.length !== REQUIRED_UPLOAD_PURPOSES.length) {
+  const hasAll = REQUIRED_WIP_PURPOSES.every((purpose) => set.has(purpose));
+  if (!hasAll || uploads.length !== REQUIRED_WIP_PURPOSES.length) {
     return null;
   }
   return uploads.map((upload) => ({
@@ -139,7 +116,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const finalized = toFinalizeUploads(parsed.uploads);
+  const finalized = toWipFinalizeUploads(parsed.uploads);
   if (!finalized) {
     return NextResponse.json(
       { ok: false, error: "Missing required image variants." },
@@ -177,37 +154,44 @@ export async function POST(req: Request) {
   }
 
   try {
-    const persisted = await persistUploadedImages(userId, finalized);
-    const insert = toSavedCardInsertFromConfiguration(
-      userId,
-      trimmed,
-      parsed.configuration,
-      {
-        frontRawImageId: persisted.frontRaw.id,
-        frontImageId: persisted.frontProcessed.id,
-        backRawImageId: persisted.backRaw.id,
-        backImageId: persisted.backProcessed.id,
-      },
-    );
-    await db.insert(savedCards).values(insert);
+    const rows = await db
+      .insert(images)
+      .values(
+        finalized.map((upload) => ({
+          userId,
+          objectKey: upload.objectKey,
+          publicUrl: `r2://${upload.objectKey}`,
+          mimeType: upload.mimeType,
+          sizeBytes: upload.byteSize,
+          etag: null,
+        })),
+      )
+      .returning({ id: images.id });
 
-    if (parsed.wipId) {
-      try {
-        await deleteWipCardCascade(userId, parsed.wipId);
-      } catch (error) {
-        console.warn(
-          `Failed to cleanup WIP card ${parsed.wipId} after save:`,
-          error,
-        );
-      }
+    const byPurpose = new Map(
+      finalized.map((upload, idx) => [upload.purpose, rows[idx]]),
+    );
+    const frontRaw = byPurpose.get("front_raw");
+    const backRaw = byPurpose.get("back_raw");
+    if (!frontRaw || !backRaw) {
+      throw new Error("Missing required uploaded image variants.");
     }
 
-    return NextResponse.json({ ok: true });
+    const wipId = randomUUID();
+    await db.insert(wipCards).values({
+      id: wipId,
+      userId,
+      name: trimmed,
+      frontRawImageId: frontRaw.id,
+      backRawImageId: backRaw.id,
+    });
+
+    return NextResponse.json({ ok: true, id: wipId });
   } catch {
     return NextResponse.json(
       {
         ok: false,
-        error: "Could not finalize save.",
+        error: "Could not save work-in-progress card.",
         cleanupCandidates: finalized.map((upload) => upload.objectKey),
       },
       { status: 500 },

@@ -64,3 +64,22 @@ export const savedCards = pgTable(
   },
   (t) => [index("saved_cards_user_id_idx").on(t.userId)],
 );
+
+export const wipCards = pgTable(
+  "wip_cards",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    frontRawImageId: uuid("front_raw_image_id").references(() => images.id, {
+      onDelete: "set null",
+    }),
+    backRawImageId: uuid("back_raw_image_id").references(() => images.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [index("wip_cards_user_id_idx").on(t.userId)],
+);
