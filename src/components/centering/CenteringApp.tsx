@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_GUIDE_COLOR,
   DEFAULT_GUIDES,
@@ -94,6 +94,11 @@ export function CenteringApp() {
   const [wipId, setWipId] = useState<string | null>(null);
   const [wipName, setWipName] = useState<string | null>(null);
   const [wipLoading, setWipLoading] = useState(false);
+  const finalizedWipRef = useRef<string | null>(null);
+  const [openPerspectiveSignal, setOpenPerspectiveSignal] = useState<{
+    side: CardSide;
+    token: number;
+  } | null>(null);
 
   const [viewerMagnify, setViewerMagnify] = useState<ViewerMagnify | null>(
     null,
@@ -137,6 +142,10 @@ export function CenteringApp() {
       return;
     }
     if (wipParam === wipId) return;
+    // Skip fetching a WIP card we just finalized — it was deleted server-side,
+    // and the stale `wipParam` in the URL would otherwise surface a 404 toast
+    // on the way out to /protected/cards.
+    if (finalizedWipRef.current === wipParam) return;
 
     let cancelled = false;
     setWipLoading(true);
@@ -170,6 +179,7 @@ export function CenteringApp() {
         );
         setWipId(json.card.id);
         setWipName(json.card.name);
+        setOpenPerspectiveSignal({ side: "front", token: Date.now() });
         notifySuccess(`Loaded "${json.card.name}" from WIP.`);
       } catch {
         if (!cancelled) notifyError("Could not load WIP card.");
@@ -272,12 +282,14 @@ export function CenteringApp() {
   };
 
   const onWipFinalized = useCallback(() => {
+    if (wipId) finalizedWipRef.current = wipId;
     setWipId(null);
     setWipName(null);
+    setOpenPerspectiveSignal(null);
     resetAll();
     void clearCenteringSession().catch(() => {});
     router.replace("/protected/cards");
-  }, [resetAll, router]);
+  }, [resetAll, router, wipId]);
 
   const setMagnifyForSide = (
     side: CardSide,
@@ -361,6 +373,11 @@ export function CenteringApp() {
             onPerspectiveModeChange={(open) =>
               setPerspectiveForSide("front", open)
             }
+            openPerspectiveToken={
+              openPerspectiveSignal?.side === "front"
+                ? openPerspectiveSignal.token
+                : null
+            }
           />
         </div>
         <div
@@ -375,6 +392,11 @@ export function CenteringApp() {
             sideResult={backResult}
             onPerspectiveModeChange={(open) =>
               setPerspectiveForSide("back", open)
+            }
+            openPerspectiveToken={
+              openPerspectiveSignal?.side === "back"
+                ? openPerspectiveSignal.token
+                : null
             }
           />
         </div>

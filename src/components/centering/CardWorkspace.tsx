@@ -70,6 +70,11 @@ type CardWorkspaceProps = {
   onViewerMagnify: (factor: ViewerMagnifyFactor | null) => void;
   sideResult: SideResult;
   onPerspectiveModeChange?: (open: boolean) => void;
+  /**
+   * When this token changes to a new non-null value, the perspective editor is
+   * opened automatically (e.g. right after hydrating from a WIP card).
+   */
+  openPerspectiveToken?: number | null;
 };
 
 export function CardWorkspace({
@@ -80,6 +85,7 @@ export function CardWorkspace({
   onViewerMagnify,
   sideResult,
   onPerspectiveModeChange,
+  openPerspectiveToken = null,
 }: CardWorkspaceProps) {
   const state = useCenteringStore((s) => s[side]);
   const setSide = useCenteringStore((s) => s.setSide);
@@ -121,6 +127,15 @@ export function CardWorkspace({
   useEffect(() => {
     onPerspectiveModeChange?.(perspectiveMode);
   }, [perspectiveMode, onPerspectiveModeChange]);
+
+  const handledPerspectiveTokenRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (openPerspectiveToken === null) return;
+    if (handledPerspectiveTokenRef.current === openPerspectiveToken) return;
+    if (!state.rawImageSrc) return;
+    handledPerspectiveTokenRef.current = openPerspectiveToken;
+    openPerspective();
+  }, [openPerspectiveToken, state.rawImageSrc, openPerspective]);
 
   useEffect(() => {
     if (prevViewerScaleRef.current === null) {
