@@ -1,3 +1,15 @@
+# PokeCentering
+
+## What PokeCentering Is For
+
+PokeCentering helps Pokémon card collectors understand how well a card is centered before they grade, sell, or add it to their collection. Instead of relying on a quick visual guess, collectors can use a photo of the card to compare its borders, review the front and back, and get a clearer picture of its likely centering quality.
+
+The goal is not to replace professional grading or promise a final grade. It is to make one of the most important parts of card evaluation easier to see, measure, and discuss. PokeCentering gives collectors a practical second opinion so they can make more confident decisions about which cards to submit, how to describe their condition, and where they fit in a collection.
+
+The app is designed to support the full process: capture a card on a phone, refine the image and measurements on a larger screen, save the result, and export a visual summary that can be revisited or shared. Over time, the vision is for PokeCentering to become a trusted workspace for evaluating cards consistently—without requiring specialized equipment or expert-level knowledge.
+
+[![PokeCentering exported result](https://i.imgur.com/lsgsSlz.jpg)](https://imgur.com/lsgsSlz)
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
